@@ -1,118 +1,195 @@
 "use client"
 
-import React from "react"
-
-import { useState } from "react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useState, useRef } from "react"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Upload, FileText, X, File } from "lucide-react"
-
-interface UploadedDoc {
-  name: string
-  type: string
-  size: string
-  date: string
-}
-
-const existingDocs: UploadedDoc[] = [
-  { name: "Research_Paper_ML_2024.pdf", type: "Research Paper", size: "2.4 MB", date: "Dec 15, 2024" },
-  { name: "Teaching_Certificate_2024.pdf", type: "Certificate", size: "1.1 MB", date: "Nov 20, 2024" },
-  { name: "Conference_Proceedings.pdf", type: "Research Paper", size: "3.8 MB", date: "Oct 5, 2024" },
-  { name: "FDP_Completion_Certificate.pdf", type: "Certificate", size: "0.8 MB", date: "Sep 12, 2024" },
-]
+import { Label } from "@/components/ui/label"
+import { Input } from "@/components/ui/input"
+import { useAuth } from "@/lib/auth-context"
+import { addDocument, getActiveCycle, addAuditLog, KPI_CATEGORIES, type KPICategoryId } from "@/lib/firestore"
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
+import { storage } from "@/lib/firebase"
+import { Upload, FileText, Loader2, CheckCircle, AlertTriangle } from "lucide-react"
+import { toast } from "sonner"
 
 export function UploadDocumentsPage() {
-  const [docs, setDocs] = useState(existingDocs)
-  const [isDragActive, setIsDragActive] = useState(false)
+  const { user } = useAuth()
+  const fileRef = useRef<HTMLInputElement>(null)
+  const [category, setCategory] = useState<KPICategoryId>("research-publications")
+  const [description, setDescription] = useState("")
+  const [file, setFile] = useState<File | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [success, setSuccess] = useState(false)
+  const [activeCycleYear, setActiveCycleYear] = useState("")
+  const [dragOver, setDragOver] = useState(false)
 
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setIsDragActive(false)
-    // Simulate file upload
-    const newDoc: UploadedDoc = {
-      name: "New_Document.pdf",
-      type: "Other",
-      size: "1.2 MB",
-      date: "Feb 11, 2026",
+  useEffect(() => {
+    getActiveCycle().then(c => {
+      if (c) setActiveCycleYear(c.academicYear)
+    })
+  }, [])
+
+  function handleFileSelect(f: File) {
+    if (f.type !== "application/pdf") {
+      toast.error("Only PDF files are allowed")
+      return
     }
-    setDocs((prev) => [newDoc, ...prev])
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error("File size must be under 5 MB")
+      return
+    }
+    setFile(f)
+    setSuccess(false)
+  }
+
+  async function handleUpload() {
+    if (!file || !user || !activeCycleYear) return
+    setUploading(true)
+    try {
+      // Generate unique filename
+      const uniqueName = `${crypto.randomUUID()}_${file.name}`
+      const storageRef = ref(storage, `documents/${user.uid}/${uniqueName}`)
+      await uploadBytes(storageRef, file)
+      const url = await getDownloadURL(storageRef)
+
+      const catName = KPI_CATEGORIES.find(c => c.id === category)?.name || category
+
+      await addDocument({
+        facultyId: user.uid,
+        facultyName: user.name,
+        departmentId: user.departmentId || "",
+        departmentName: user.departmentName || "",
+        category,
+        categoryName: catName,
+        fileName: uniqueName,
+        originalName: file.name,
+        filePath: url,
+        fileSize: file.size,
+        description,
+        uploadedAt: new Date().toISOString(),
+        status: "pending",
+        academicYear: activeCycleYear,
+      })
+
+      await addAuditLog({
+        userId: user.uid, userName: user.name,
+        action: "Document Uploaded",
+        details: `"${file.name}" in ${catName}`,
+        timestamp: new Date().toISOString(),
+      })
+
+      toast.success("Document uploaded successfully!")
+      setSuccess(true)
+      setFile(null)
+      setDescription("")
+      if (fileRef.current) fileRef.current.value = ""
+    } catch (err: any) {
+      console.error("Upload error:", err)
+      const msg = err?.message || "Upload failed"
+      if (msg.includes("unauthorized") || msg.includes("permission") || msg.includes("403")) {
+        toast.error("Storage permission denied. Please update Firebase Storage rules.")
+      } else {
+        toast.error(msg)
+      }
+    }
+    setUploading(false)
   }
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="space-y-6">
       <div>
-        <h2 className="font-display text-xl font-bold text-foreground">Upload Documents</h2>
-        <p className="text-sm text-muted-foreground">Upload certificates, research papers, and supporting documents</p>
+        <h2 className="font-display text-2xl font-bold text-foreground">Upload Documents</h2>
+        <p className="text-sm text-muted-foreground mt-1">Upload PDF achievement documents for evaluation</p>
       </div>
 
-      {/* Upload area */}
-      <Card className="border-border bg-card">
-        <CardContent className="p-6">
-          <div
-            onDragOver={(e) => {
-              e.preventDefault()
-              setIsDragActive(true)
-            }}
-            onDragLeave={() => setIsDragActive(false)}
-            onDrop={handleDrop}
-            className={`flex flex-col items-center justify-center gap-4 rounded-xl border-2 border-dashed p-12 transition-colors ${
-              isDragActive ? "border-primary bg-primary/5" : "border-border"
-            }`}
-          >
-            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
-              <Upload className="h-6 w-6 text-primary" />
-            </div>
-            <div className="text-center">
-              <p className="font-medium text-foreground">Drag and drop files here</p>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Supports PDF, DOC, DOCX up to 10MB
-              </p>
-            </div>
-            <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-              <File className="mr-2 h-4 w-4" />
-              Browse Files
-            </Button>
+      {!activeCycleYear && (
+        <Card className="glass-card border-amber-500/20">
+          <CardContent className="p-5 flex items-center gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-400" />
+            <p className="text-sm text-foreground">No active evaluation cycle. Uploads are disabled until the admin activates one.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      <Card className="glass-card border-border/50">
+        <CardContent className="p-6 space-y-5">
+          {/* Category selection */}
+          <div>
+            <Label className="text-xs text-muted-foreground">Document Category</Label>
+            <select
+              value={category}
+              onChange={e => setCategory(e.target.value as KPICategoryId)}
+              className="w-full h-10 rounded-md bg-secondary/50 border border-border px-3 text-sm text-foreground mt-1"
+            >
+              {KPI_CATEGORIES.map(c => (
+                <option key={c.id} value={c.id}>{c.name} ({c.weightage}%)</option>
+              ))}
+            </select>
           </div>
+
+          {/* Description */}
+          <div>
+            <Label className="text-xs text-muted-foreground">Description</Label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              placeholder="Brief description of this document…"
+              className="w-full h-20 rounded-lg bg-secondary/50 border border-border p-3 text-sm text-foreground resize-none focus:border-primary focus:outline-none mt-1"
+            />
+          </div>
+
+          {/* File drop zone */}
+          <div>
+            <Label className="text-xs text-muted-foreground">PDF File (Max 5 MB)</Label>
+            <div
+              className={`mt-1 flex flex-col items-center justify-center rounded-2xl border-2 border-dashed p-10 transition-all cursor-pointer ${dragOver ? "border-primary bg-primary/5" : "border-border hover:border-primary/50"}`}
+              onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+              onDragLeave={() => setDragOver(false)}
+              onDrop={e => { e.preventDefault(); setDragOver(false); if (e.dataTransfer.files[0]) handleFileSelect(e.dataTransfer.files[0]) }}
+              onClick={() => fileRef.current?.click()}
+            >
+              <Upload className={`h-10 w-10 mb-3 ${dragOver ? "text-primary" : "text-muted-foreground/40"}`} />
+              <p className="text-sm text-muted-foreground">
+                {file ? file.name : "Drag & drop your PDF here or click to browse"}
+              </p>
+              {file && <p className="text-xs text-muted-foreground mt-1">{(file.size / 1024 / 1024).toFixed(2)} MB</p>}
+              <input
+                ref={fileRef}
+                type="file"
+                accept=".pdf"
+                className="hidden"
+                onChange={e => { if (e.target.files?.[0]) handleFileSelect(e.target.files[0]) }}
+              />
+            </div>
+          </div>
+
+          <Button
+            onClick={handleUpload}
+            disabled={uploading || !file || !activeCycleYear}
+            className="w-full h-12 bg-gradient-to-r from-primary to-blue-500 hover:opacity-90 text-base font-medium"
+          >
+            {uploading ? (
+              <><Loader2 className="h-5 w-5 animate-spin mr-2" /> Uploading…</>
+            ) : success ? (
+              <><CheckCircle className="h-5 w-5 mr-2" /> Upload Another</>
+            ) : (
+              <><Upload className="h-5 w-5 mr-2" /> Upload Document</>
+            )}
+          </Button>
         </CardContent>
       </Card>
 
-      {/* Uploaded documents */}
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="font-display text-base">Uploaded Documents ({docs.length})</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col gap-3">
-            {docs.map((doc, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-4 rounded-xl border border-border p-4 transition-colors hover:bg-muted/50"
-              >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-destructive/10">
-                  <FileText className="h-5 w-5 text-destructive" />
-                </div>
-                <div className="flex-1">
-                  <p className="text-sm font-medium text-foreground">{doc.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {doc.size} - Uploaded {doc.date}
-                  </p>
-                </div>
-                <Badge variant="outline" className="hidden sm:inline-flex">
-                  {doc.type}
-                </Badge>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0"
-                  onClick={() => setDocs((prev) => prev.filter((_, idx) => idx !== i))}
-                  aria-label="Remove document"
-                >
-                  <X className="h-4 w-4 text-muted-foreground" />
-                </Button>
-              </div>
-            ))}
-          </div>
+      {/* Requirements */}
+      <Card className="glass-card border-border/50">
+        <CardContent className="p-5">
+          <p className="text-xs uppercase tracking-widest text-muted-foreground font-semibold mb-3">Upload Requirements</p>
+          <ul className="space-y-1 text-xs text-muted-foreground">
+            <li>• File type: <span className="text-foreground">PDF only</span></li>
+            <li>• Max size: <span className="text-foreground">5 MB</span></li>
+            <li>• Select the correct category before uploading</li>
+            <li>• Rejected documents can be re-uploaded</li>
+            <li>• Duplicate uploads are tracked by filename</li>
+          </ul>
         </CardContent>
       </Card>
     </div>

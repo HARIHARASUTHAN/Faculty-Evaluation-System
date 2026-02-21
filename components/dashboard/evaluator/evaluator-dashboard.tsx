@@ -6,11 +6,7 @@ import { ReviewSubmissionsPage } from "./review-submissions-page"
 import { ScoreCommentPage } from "./score-comment-page"
 import { FinalEvaluationPage } from "./final-evaluation-page"
 
-interface EvaluatorDashboardProps {
-  currentPage: string
-}
-
-export function EvaluatorDashboard({ currentPage }: EvaluatorDashboardProps) {
+export function EvaluatorDashboard({ currentPage }: { currentPage: string }) {
   switch (currentPage) {
     case "dashboard":
       return <EvaluatorOverview />

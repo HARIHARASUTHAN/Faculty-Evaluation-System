@@ -1,102 +1,98 @@
 "use client"
 
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { evaluationCriteria } from "@/lib/dummy-data"
+import { useAuth } from "@/lib/auth-context"
+import { getEvaluationsByFaculty, getCriteria, type Evaluation, type Criteria } from "@/lib/firestore"
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts"
 
-const feedbackData = evaluationCriteria.map((c) => ({
-  name: c.name.split(" ")[0],
-  selfScore: Math.floor(Math.random() * 15) + 75,
-  evaluatorScore: Math.floor(Math.random() * 15) + 78,
-}))
-
 export function FeedbackPage() {
+  const { user } = useAuth()
+  const [evaluations, setEvaluations] = useState<Evaluation[]>([])
+  const [criteria, setCriteria] = useState<Criteria[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!user) return
+    async function fetchData() {
+      try {
+        const [evals, crit] = await Promise.all([getEvaluationsByFaculty(user!.uid), getCriteria()])
+        setEvaluations(evals.filter(e => e.status === "evaluated"))
+        setCriteria(crit)
+      } catch { console.error("Failed to load feedback") } finally { setLoading(false) }
+    }
+    fetchData()
+  }, [user])
+
+  if (loading) return <div className="flex flex-col gap-6"><div className="h-24 skeleton-shimmer rounded-xl" /><div className="h-64 skeleton-shimmer rounded-xl" /></div>
+
+  const latestEval = evaluations.length > 0 ? evaluations[evaluations.length - 1] : null
+
+  const chartData = criteria.map(c => ({
+    name: c.title.split(" ")[0],
+    score: latestEval?.scores[c.id] || 0,
+  }))
+
   return (
     <div className="flex flex-col gap-6">
       <div>
         <h2 className="font-display text-xl font-bold text-foreground">View Feedback</h2>
-        <p className="text-sm text-muted-foreground">Feedback from your evaluator for the academic year 2024-25</p>
+        <p className="text-sm text-muted-foreground">Feedback from your evaluator for the academic year</p>
       </div>
 
-      {/* Overall feedback card */}
-      <Card className="border-border bg-card">
-        <CardContent className="p-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-1">
-              <p className="text-sm text-muted-foreground">Overall Performance Score</p>
-              <div className="flex items-baseline gap-2">
-                <span className="font-display text-4xl font-bold text-primary">87</span>
-                <span className="text-lg text-muted-foreground">/100</span>
+      {!latestEval ? (
+        <Card className="border-border bg-card"><CardContent className="py-12 text-center text-muted-foreground">No feedback available yet. Your evaluation must be completed first.</CardContent></Card>
+      ) : (
+        <>
+          {/* Overall score */}
+          <Card className="premium-card border-border bg-card animate-fade-in-up">
+            <CardContent className="p-6">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex flex-col gap-1">
+                  <p className="text-sm text-muted-foreground">Overall Performance Score</p>
+                  <div className="flex items-baseline gap-2">
+                    <span className="font-display text-5xl font-bold gradient-text">{latestEval.finalScore}</span>
+                    <span className="text-lg text-muted-foreground">/100</span>
+                  </div>
+                </div>
+                <Badge className="w-fit bg-accent/15 text-accent hover:bg-accent/20 border-0 text-sm px-5 py-2">
+                  {latestEval.finalScore >= 80 ? "Excellent" : latestEval.finalScore >= 60 ? "Good" : "Needs Improvement"}
+                </Badge>
               </div>
-            </div>
-            <Badge className="w-fit bg-accent/15 text-accent hover:bg-accent/20 border-0 text-sm px-4 py-1.5">
-              Excellent Performance
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
 
-      {/* Score comparison chart */}
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="font-display text-base">Self Score vs Evaluator Score</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={feedbackData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} stroke="hsl(var(--muted-foreground))" />
-              <YAxis domain={[60, 100]} stroke="hsl(var(--muted-foreground))" tick={{ fontSize: 11 }} />
-              <Tooltip
-                contentStyle={{
-                  backgroundColor: "hsl(var(--card))",
-                  border: "1px solid hsl(var(--border))",
-                  borderRadius: "8px",
-                  color: "hsl(var(--foreground))",
-                }}
-              />
-              <Bar dataKey="selfScore" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} name="Self Score" />
-              <Bar dataKey="evaluatorScore" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} name="Evaluator Score" />
-            </BarChart>
-          </ResponsiveContainer>
-        </CardContent>
-      </Card>
+          {/* Chart */}
+          {chartData.length > 0 && (
+            <Card className="premium-card border-border bg-card animate-fade-in-up stagger-2">
+              <CardHeader><CardTitle className="font-display text-base">Criteria-wise Scores</CardTitle></CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(225,15%,18%)" />
+                    <XAxis dataKey="name" tick={{ fontSize: 11, fill: "hsl(215,20%,55%)" }} stroke="hsl(225,15%,18%)" />
+                    <YAxis domain={[0, 100]} stroke="hsl(225,15%,18%)" tick={{ fontSize: 11, fill: "hsl(215,20%,55%)" }} />
+                    <Tooltip contentStyle={{ backgroundColor: "hsl(225,25%,13%)", border: "1px solid hsl(225,15%,20%)", borderRadius: "12px", color: "hsl(210,40%,96%)" }} />
+                    <Bar dataKey="score" fill="hsl(217,91%,60%)" radius={[8, 8, 0, 0]} name="Score" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          )}
 
-      {/* Evaluator comments */}
-      <Card className="border-border bg-card">
-        <CardHeader>
-          <CardTitle className="font-display text-base">Evaluator Comments</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <div className="rounded-xl bg-muted/50 p-4">
-            <p className="mb-2 text-sm font-medium text-foreground">Dr. Anand Patel (HOD)</p>
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              Excellent teaching skills with consistent research output. Dr. Sharma has shown remarkable
-              improvement in publications this academic year with 3 journal papers and 2 conference proceedings.
-              Student feedback has been consistently positive. I recommend continuing the current research
-              direction and exploring funded project opportunities.
-            </p>
-          </div>
-          <div className="rounded-xl bg-muted/50 p-4">
-            <p className="mb-2 text-sm font-medium text-foreground">Areas of Improvement</p>
-            <ul className="flex flex-col gap-1 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-chart-3" />
-                Consider applying for more funded research projects
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-chart-3" />
-                Increase industry collaboration and MoU activities
-              </li>
-              <li className="flex items-start gap-2">
-                <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-chart-3" />
-                Mentor more Ph.D. scholars for enhanced research output
-              </li>
-            </ul>
-          </div>
-        </CardContent>
-      </Card>
+          {/* Comments */}
+          <Card className="premium-card border-border bg-card animate-fade-in-up stagger-3">
+            <CardHeader><CardTitle className="font-display text-base">Evaluator Comments</CardTitle></CardHeader>
+            <CardContent>
+              <div className="rounded-xl bg-secondary/40 p-5">
+                <p className="mb-2 text-sm font-medium text-foreground">Evaluator Feedback</p>
+                <p className="text-sm leading-relaxed text-muted-foreground">{latestEval.comments || "No comments provided."}</p>
+              </div>
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   )
 }

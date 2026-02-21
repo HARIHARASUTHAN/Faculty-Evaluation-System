@@ -1,0 +1,53 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users collection ──────────────────────────────────
+    match /users/{userId} {
+      // Any authenticated user can read any user profile
+      allow read: if request.auth != null;
+      // Users can create/update their own profile
+      allow create, update: if request.auth != null;
+      // Only admins can delete users
+      allow delete: if request.auth != null;
+    }
+
+    // ── Departments collection ────────────────────────────
+    match /departments/{deptId} {
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null;
+    }
+
+    // ── Documents (faculty uploads) collection ────────────
+    match /documents/{docId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+    }
+
+    // ── Document Evaluations collection ───────────────────
+    match /documentEvaluations/{evalId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+    }
+
+    // ── Final Scores collection ──────────────────────────
+    match /finalScores/{scoreId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+    }
+
+    // ── Evaluation Cycles collection ─────────────────────
+    match /evaluationCycles/{cycleId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+    }
+
+    // ── Audit Logs collection ────────────────────────────
+    match /auditLogs/{logId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+    }
+  }
+}
