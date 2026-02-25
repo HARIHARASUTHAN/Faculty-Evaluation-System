@@ -5,8 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { getDepartments, addDepartment, deleteDepartment, type Department } from "@/lib/firestore"
-import { Building2, Plus, Trash2, Loader2, Users } from "lucide-react"
+import { getDepartments, addDepartment, deleteDepartment, updateDepartment, type Department } from "@/lib/firestore"
+import { Building2, Plus, Trash2, Loader2, Users, Pencil, Check, X } from "lucide-react"
 import { toast } from "sonner"
 
 export function DepartmentsPage() {
@@ -14,6 +14,9 @@ export function DepartmentsPage() {
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState("")
   const [adding, setAdding] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState("")
+  const [saving, setSaving] = useState(false)
 
   async function load() {
     try {
@@ -43,6 +46,34 @@ export function DepartmentsPage() {
       toast.success("Department deleted")
       setDepartments(prev => prev.filter(d => d.id !== id))
     } catch { toast.error("Failed to delete") }
+  }
+
+  function startEdit(dept: Department) {
+    setEditingId(dept.id)
+    setEditName(dept.departmentName)
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditName("")
+  }
+
+  async function handleSaveEdit(deptId: string) {
+    if (!editName.trim()) {
+      toast.error("Department name is required")
+      return
+    }
+    setSaving(true)
+    try {
+      await updateDepartment(deptId, { departmentName: editName.trim() })
+      toast.success("Department updated successfully!")
+      setEditingId(null)
+      setEditName("")
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update department")
+    }
+    setSaving(false)
   }
 
   if (loading) {
@@ -90,29 +121,77 @@ export function DepartmentsPage() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {departments.map((dept, i) => (
-            <Card key={dept.id} className={`glass-card border-border/50 hover:border-primary/30 transition-all animate-fade-in-up stagger-${Math.min(i + 1, 6)}`}>
+            <Card key={dept.id} className={`glass-card border-border/50 hover:border-primary/30 transition-all animate-fade-in-up stagger-${Math.min(i + 1, 6)} ${editingId === dept.id ? "border-primary/30 bg-primary/5" : ""}`}>
               <CardContent className="p-5">
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
-                      <Building2 className="h-5 w-5 text-primary" />
+                {editingId === dept.id ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10 shrink-0">
+                        <Building2 className="h-5 w-5 text-primary" />
+                      </div>
+                      <Input
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        className="bg-secondary/50 border-border h-9 text-sm"
+                        placeholder="Department Name"
+                        onKeyDown={e => e.key === "Enter" && handleSaveEdit(dept.id)}
+                        autoFocus
+                      />
                     </div>
-                    <div>
-                      <p className="font-medium text-foreground">{dept.departmentName}</p>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {dept.hodName ? `HOD: ${dept.hodName}` : "No HOD assigned"}
-                      </p>
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-accent hover:text-accent hover:bg-accent/10"
+                        disabled={saving}
+                        onClick={() => handleSaveEdit(dept.id)}
+                      >
+                        {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                        onClick={cancelEdit}
+                        disabled={saving}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => handleDelete(dept.id)}
-                    className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
+                ) : (
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/10">
+                        <Building2 className="h-5 w-5 text-primary" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-foreground">{dept.departmentName}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {dept.hodName ? `HOD: ${dept.hodName}` : "No HOD assigned"}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => startEdit(dept)}
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 w-8"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleDelete(dept.id)}
+                        className="text-muted-foreground hover:text-destructive hover:bg-destructive/10 h-8 w-8"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}

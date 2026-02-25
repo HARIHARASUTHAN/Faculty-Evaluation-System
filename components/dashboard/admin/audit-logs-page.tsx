@@ -2,12 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { getAuditLogs, type AuditLog } from "@/lib/firestore"
-import { ShieldCheck } from "lucide-react"
+import { ShieldCheck, Search } from "lucide-react"
 
 export function AuditLogsPage() {
     const [logs, setLogs] = useState<AuditLog[]>([])
     const [loading, setLoading] = useState(true)
+    const [search, setSearch] = useState("")
 
     useEffect(() => {
         async function load() {
@@ -20,21 +22,44 @@ export function AuditLogsPage() {
         load()
     }, [])
 
+    const filtered = logs.filter(log => {
+        if (!search) return true
+        const q = search.toLowerCase()
+        return (
+            log.userName.toLowerCase().includes(q) ||
+            log.action.toLowerCase().includes(q) ||
+            log.details.toLowerCase().includes(q)
+        )
+    })
+
     if (loading) {
         return <div className="space-y-4">{[1, 2, 3].map(i => <div key={i} className="h-14 rounded-2xl bg-card/50 animate-pulse shimmer" />)}</div>
     }
 
     return (
         <div className="space-y-6">
-            <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">Audit Logs</h2>
-                <p className="text-sm text-muted-foreground mt-1">Track all system actions for security and compliance</p>
+            <div className="flex items-center justify-between flex-wrap gap-4">
+                <div>
+                    <h2 className="font-display text-2xl font-bold text-foreground">Audit Logs</h2>
+                    <p className="text-sm text-muted-foreground mt-1">Track all system actions for security and compliance</p>
+                </div>
             </div>
 
-            {logs.length === 0 ? (
+            {/* Search */}
+            <div className="relative max-w-sm">
+                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                    value={search}
+                    onChange={e => setSearch(e.target.value)}
+                    placeholder="Search by user, action, or details…"
+                    className="pl-9 bg-secondary/50 border-border"
+                />
+            </div>
+
+            {filtered.length === 0 ? (
                 <div className="flex flex-col items-center py-16 text-muted-foreground">
                     <ShieldCheck className="h-14 w-14 mb-3 opacity-20" />
-                    <p>No audit logs recorded yet</p>
+                    <p>{search ? "No matching logs found" : "No audit logs recorded yet"}</p>
                 </div>
             ) : (
                 <Card className="glass-card border-border/50 overflow-hidden">
@@ -49,7 +74,7 @@ export function AuditLogsPage() {
                                 </tr>
                             </thead>
                             <tbody>
-                                {logs.map(log => (
+                                {filtered.map(log => (
                                     <tr key={log.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
                                         <td className="px-5 py-3 text-xs text-muted-foreground whitespace-nowrap">
                                             {new Date(log.timestamp).toLocaleString()}
@@ -67,3 +92,4 @@ export function AuditLogsPage() {
         </div>
     )
 }
+

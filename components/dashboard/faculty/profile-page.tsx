@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import {
   User, Mail, Building2, Phone, GraduationCap,
-  Briefcase, Save, Loader2, Pencil, CheckCircle,
+  Briefcase, Save, Loader2, Pencil, CheckCircle, Hash,
 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -219,6 +219,22 @@ export function ProfilePage() {
                   </p>
                 </div>
               )}
+            </div>
+
+            {/* Faculty ID */}
+            <div className="space-y-2">
+              <Label className="text-xs text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+                <Hash className="h-3.5 w-3.5" />
+                Faculty ID
+              </Label>
+              <div className="flex items-center gap-3 rounded-xl bg-secondary/30 p-3.5">
+                <p className="text-sm font-mono font-medium text-foreground">
+                  {user?.uid || "—"}
+                </p>
+                <Badge className="text-[10px] bg-secondary/50 text-muted-foreground border-border ml-auto">
+                  System Generated
+                </Badge>
+              </div>
             </div>
 
             {/* Email */}

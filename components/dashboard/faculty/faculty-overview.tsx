@@ -1,33 +1,45 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
 import {
-  getDocumentsByFaculty, getFinalScoresByFaculty, getActiveCycle,
+  getDocumentsByFaculty, getFinalScoresByFaculty, getActiveCycle, getFinalScores,
   type FacultyDocument, type FinalScore, type EvaluationCycle
 } from "@/lib/firestore"
-import { Upload, FileText, CheckCircle, Clock, XCircle, TrendingUp, CalendarClock } from "lucide-react"
+import { Upload, FileText, CheckCircle, Clock, XCircle, TrendingUp, CalendarClock, Award } from "lucide-react"
 
 export function FacultyOverview() {
   const { user } = useAuth()
   const [docs, setDocs] = useState<FacultyDocument[]>([])
   const [scores, setScores] = useState<FinalScore[]>([])
   const [activeCycle, setActiveCycle] = useState<EvaluationCycle | null>(null)
+  const [topFaculty, setTopFaculty] = useState<FinalScore[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       if (!user?.uid) { setLoading(false); return }
       try {
-        const [d, s, c] = await Promise.all([
+        const [d, s, c, allScores] = await Promise.all([
           getDocumentsByFaculty(user.uid),
           getFinalScoresByFaculty(user.uid),
           getActiveCycle(),
+          getFinalScores(),
         ])
         setDocs(d)
         setScores(s)
         setActiveCycle(c)
+
+        // Top faculty — deduplicate by facultyId, keep only latest score
+        const latestByFaculty = new Map<string, FinalScore>()
+        allScores.forEach(sc => {
+          const existing = latestByFaculty.get(sc.facultyId)
+          if (!existing || (sc.submittedAt > existing.submittedAt)) {
+            latestByFaculty.set(sc.facultyId, sc)
+          }
+        })
+        setTopFaculty(Array.from(latestByFaculty.values()).sort((a, b) => b.totalScore - a.totalScore).slice(0, 5))
       } catch (err) { console.error(err) }
       setLoading(false)
     }
@@ -41,7 +53,7 @@ export function FacultyOverview() {
   const pending = docs.filter(d => d.status === "pending").length
   const approved = docs.filter(d => d.status === "approved").length
   const rejected = docs.filter(d => d.status === "rejected").length
-  const latestScore = scores.length > 0 ? scores.sort((a, b) => b.academicYear.localeCompare(a.academicYear))[0] : null
+  const latestScore = scores.length > 0 ? scores.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0] : null
 
   const cards = [
     { label: "Documents Uploaded", value: docs.length, icon: Upload, gradient: "stat-card-gradient-blue" },
@@ -54,7 +66,7 @@ export function FacultyOverview() {
     <div className="space-y-6">
       {/* Welcome */}
       <div className="glass-card rounded-2xl p-6">
-        <h2 className="font-display text-2xl font-bold text-foreground">Welcome, {user?.name || "Faculty"} 👋</h2>
+        <h2 className="font-display text-2xl font-bold text-foreground">{user?.name || "Faculty"}</h2>
         <p className="text-sm text-muted-foreground mt-1">{user?.departmentName || "Faculty Member"}</p>
         {activeCycle && (
           <div className="flex items-center gap-2 mt-3 text-xs text-primary">
@@ -113,6 +125,34 @@ export function FacultyOverview() {
           </CardContent>
         </Card>
       )}
+
+      {/* Top Performing Faculty */}
+      <Card className="glass-card border-border/50">
+        <CardHeader><CardTitle className="font-display text-lg flex items-center gap-2"><Award className="h-5 w-5 text-accent" />Top Performing Faculty</CardTitle></CardHeader>
+        <CardContent>
+          {topFaculty.length > 0 ? (
+            <div className="space-y-3">
+              {topFaculty.map((f, i) => (
+                <div key={f.id} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors">
+                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg font-display font-bold text-sm ${i === 0 ? "bg-accent/15 text-accent" : i === 1 ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground"}`}>
+                    #{i + 1}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-foreground text-sm truncate">{f.facultyName}</p>
+                    <p className="text-xs text-muted-foreground">{f.departmentName} • {f.academicYear}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-display font-bold text-foreground">{f.totalScore}<span className="text-xs text-muted-foreground">/100</span></p>
+                    <p className={`text-xs font-medium ${f.grade === "A" ? "text-accent" : f.grade === "B" ? "text-primary" : "text-amber-400"}`}>Grade {f.grade}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground text-sm">No evaluations completed yet</div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }

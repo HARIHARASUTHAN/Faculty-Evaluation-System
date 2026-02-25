@@ -18,12 +18,13 @@ import { db } from "./firebase"
 
 // ─── KPI Categories with Weightage ────────────────────────────
 export const KPI_CATEGORIES = [
-    { id: "research-publications", name: "Research Publications", weightage: 30 },
+    { id: "research-publications", name: "Research Publications", weightage: 20 },
     { id: "conferences-proceedings", name: "Conferences / Proceedings", weightage: 15 },
     { id: "fdp-workshops", name: "FDP / Workshops", weightage: 10 },
     { id: "teaching-excellence", name: "Teaching Excellence Certificates", weightage: 15 },
     { id: "patents-innovation", name: "Patents / Innovation", weightage: 15 },
     { id: "admin-contribution", name: "Administrative Contribution", weightage: 15 },
+    { id: "nptel-certificates", name: "NPTEL Certificates", weightage: 10 },
 ] as const
 
 export type KPICategoryId = typeof KPI_CATEGORIES[number]["id"]
@@ -397,11 +398,11 @@ export function calculateWeightedScores(
         })
 
         const avgScore = docScores.length > 0
-            ? docScores.reduce((s, v) => s + v, 0) / docScores.length
+            ? Math.min(docScores.reduce((s, v) => s + v, 0) / docScores.length, 5)
             : 0
-        // Normalize 1-5 scale to 0-100, then apply weightage
+        // Normalize 1-5 scale to 0-100, then apply weightage (clamped to max)
         const normalizedScore = (avgScore / 5) * 100
-        const weightedScore = (normalizedScore * cat.weightage) / 100
+        const weightedScore = Math.min((normalizedScore * cat.weightage) / 100, cat.weightage)
 
         categoryScores[cat.id] = { avgScore: Math.round(avgScore * 10) / 10, weightedScore: Math.round(weightedScore * 10) / 10, docCount: docScores.length }
     })

@@ -19,7 +19,7 @@ export function EvaluationResultsPage() {
             if (!user?.uid) { setLoading(false); return }
             try {
                 const data = await getFinalScoresByFaculty(user.uid)
-                setScores(data.sort((a, b) => b.academicYear.localeCompare(a.academicYear)))
+                setScores(data.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime()))
             } catch (err) { console.error(err) }
             setLoading(false)
         }

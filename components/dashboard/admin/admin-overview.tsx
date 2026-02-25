@@ -2,22 +2,24 @@
 
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { getAdminDashboardStats, getDepartments, getFinalScores, type Department } from "@/lib/firestore"
+import { getAdminDashboardStats, getDepartments, getFinalScores, getDocuments, type Department, type FacultyDocument } from "@/lib/firestore"
 import { Users, Building2, FileText, TrendingUp, AlertTriangle, CalendarClock, CheckCircle, Clock } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 
 export function AdminOverview() {
   const [stats, setStats] = useState<any>(null)
   const [deptPerformance, setDeptPerformance] = useState<any[]>([])
+  const [deptDocStatus, setDeptDocStatus] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     async function load() {
       try {
-        const [s, depts, scores] = await Promise.all([
+        const [s, depts, scores, allDocs] = await Promise.all([
           getAdminDashboardStats(),
           getDepartments(),
           getFinalScores(),
+          getDocuments(),
         ])
         setStats(s)
 
@@ -33,6 +35,20 @@ export function AdminOverview() {
           avg: d.count > 0 ? Math.round(d.totalScore / d.count * 10) / 10 : 0,
           count: d.count,
         })))
+
+        // Compute department-wise document counts for pie chart
+        const COLORS = ["#3b82f6", "#ec4899", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444", "#14b8a6", "#f97316"]
+        const docsByDept = new Map<string, { name: string; count: number }>()
+        depts.forEach(d => docsByDept.set(d.id, { name: d.departmentName, count: 0 }))
+        allDocs.forEach(doc => {
+          const entry = docsByDept.get(doc.departmentId)
+          if (entry) entry.count++
+        })
+        setDeptDocStatus(
+          Array.from(docsByDept.values())
+            .filter(d => d.count > 0)
+            .map((d, i) => ({ name: d.name, value: d.count, color: COLORS[i % COLORS.length] }))
+        )
       } catch (err) { console.error(err) }
       setLoading(false)
     }
@@ -59,11 +75,7 @@ export function AdminOverview() {
     { label: "Avg Score", value: stats?.avgScore ?? "—", icon: TrendingUp, gradient: "stat-card-gradient-purple" },
   ]
 
-  const docStatusData = [
-    { name: "Pending", value: stats?.pendingDocs ?? 0, color: "#f59e0b" },
-    { name: "Approved", value: stats?.approvedDocs ?? 0, color: "#10b981" },
-    { name: "Rejected", value: stats?.rejectedDocs ?? 0, color: "#ef4444" },
-  ].filter(d => d.value > 0)
+  const TOOLTIP_STYLE = { background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, color: "hsl(var(--foreground))" }
 
   return (
     <div className="space-y-6">
@@ -106,9 +118,7 @@ export function AdminOverview() {
                 <BarChart data={deptPerformance}>
                   <XAxis dataKey="name" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} />
                   <YAxis tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }} domain={[0, 100]} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, color: "hsl(var(--foreground))" }}
-                  />
+                  <Tooltip contentStyle={TOOLTIP_STYLE} />
                   <Bar dataKey="avg" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} name="Avg Score" />
                 </BarChart>
               </ResponsiveContainer>
@@ -121,30 +131,30 @@ export function AdminOverview() {
           </CardContent>
         </Card>
 
-        {/* Document Status */}
+        {/* Department-wise Document Status */}
         <Card className="glass-card border-border/50">
           <CardHeader>
-            <CardTitle className="font-display text-lg">Document Status</CardTitle>
+            <CardTitle className="font-display text-lg">Department-wise Document Status</CardTitle>
           </CardHeader>
           <CardContent>
-            {docStatusData.length > 0 ? (
+            {deptDocStatus.length > 0 ? (
               <div className="flex items-center gap-6">
-                <ResponsiveContainer width="50%" height={220}>
+                <ResponsiveContainer width="60%" height={280}>
                   <PieChart>
-                    <Pie data={docStatusData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={50} paddingAngle={3}>
-                      {docStatusData.map((entry, idx) => (
+                    <Pie data={deptDocStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={110} paddingAngle={2}>
+                      {deptDocStatus.map((entry: any, idx: number) => (
                         <Cell key={idx} fill={entry.color} />
                       ))}
                     </Pie>
-                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 12, color: "hsl(var(--foreground))" }} />
+                    <Tooltip contentStyle={TOOLTIP_STYLE} />
                   </PieChart>
                 </ResponsiveContainer>
                 <div className="flex flex-col gap-3">
-                  {docStatusData.map(d => (
-                    <div key={d.name} className="flex items-center gap-2">
-                      <div className="h-3 w-3 rounded-full" style={{ backgroundColor: d.color }} />
-                      <span className="text-sm text-muted-foreground">{d.name}</span>
-                      <span className="text-sm font-semibold text-foreground ml-auto">{d.value}</span>
+                  {deptDocStatus.map((d: any) => (
+                    <div key={d.name} className="flex items-center gap-3">
+                      <div className="h-4 w-4 rounded" style={{ backgroundColor: d.color }} />
+                      <span className="text-sm font-medium text-foreground">{d.name}</span>
+                      <span className="text-sm font-bold text-foreground ml-auto">{d.value}</span>
                     </div>
                   ))}
                 </div>

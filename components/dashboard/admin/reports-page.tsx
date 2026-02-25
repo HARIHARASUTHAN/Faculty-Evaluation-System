@@ -29,8 +29,15 @@ export function ReportsPage() {
           avg: d.count > 0 ? Math.round(d.total / d.count * 10) / 10 : 0,
         })))
 
-        // Top faculty
-        setTopFaculty(scores.sort((a, b) => b.totalScore - a.totalScore).slice(0, 5))
+        // Top faculty — deduplicate by facultyId, keep only latest score
+        const latestByFaculty = new Map<string, FinalScore>()
+        scores.forEach(s => {
+          const existing = latestByFaculty.get(s.facultyId)
+          if (!existing || (s.submittedAt > existing.submittedAt)) {
+            latestByFaculty.set(s.facultyId, s)
+          }
+        })
+        setTopFaculty(Array.from(latestByFaculty.values()).sort((a, b) => b.totalScore - a.totalScore).slice(0, 5))
 
         // Category averages across all scores
         const catTotals: Record<string, { total: number; count: number }> = {}
@@ -42,12 +49,15 @@ export function ReportsPage() {
             })
           }
         })
-        setCategoryAvg(KPI_CATEGORIES.map(c => ({
-          name: c.name.length > 12 ? c.name.slice(0, 12) + "…" : c.name,
-          fullName: c.name,
-          avg: catTotals[c.id].count > 0 ? Math.round(catTotals[c.id].total / catTotals[c.id].count * 10) / 10 : 0,
-          max: c.weightage,
-        })))
+        setCategoryAvg(KPI_CATEGORIES.map(c => {
+          const rawAvg = catTotals[c.id].count > 0 ? Math.round(catTotals[c.id].total / catTotals[c.id].count * 10) / 10 : 0
+          return {
+            name: c.name.length > 12 ? c.name.slice(0, 12) + "…" : c.name,
+            fullName: c.name,
+            avg: Math.min(rawAvg, c.weightage),
+            max: c.weightage,
+          }
+        }))
       } catch (err) { console.error(err) }
       setLoading(false)
     }
@@ -98,7 +108,7 @@ export function ReportsPage() {
                       <span className="font-medium text-foreground">{c.avg}/{c.max}</span>
                     </div>
                     <div className="h-2 rounded-full bg-secondary/50 overflow-hidden">
-                      <div className="h-full rounded-full bg-gradient-to-r from-primary to-accent" style={{ width: `${c.max > 0 ? (c.avg / c.max) * 100 : 0}%` }} />
+                      <div className="h-full rounded-full bg-gradient-to-r from-blue-500 to-blue-400" style={{ width: `${c.max > 0 ? (c.avg / c.max) * 100 : 0}%` }} />
                     </div>
                   </div>
                 ))}

@@ -6,28 +6,40 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
-import { addDocument, getActiveCycle, addAuditLog, KPI_CATEGORIES, type KPICategoryId } from "@/lib/firestore"
-import { ref, uploadBytes, getDownloadURL } from "firebase/storage"
-import { storage } from "@/lib/firebase"
+import { addDocument, getActiveCycle, getDocumentsByFacultyAndYear, addAuditLog, KPI_CATEGORIES, type KPICategoryId } from "@/lib/firestore"
 import { Upload, FileText, Loader2, CheckCircle, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
 export function UploadDocumentsPage() {
   const { user } = useAuth()
   const fileRef = useRef<HTMLInputElement>(null)
-  const [category, setCategory] = useState<KPICategoryId>("research-publications")
+  const [category, setCategory] = useState("")
   const [description, setDescription] = useState("")
   const [file, setFile] = useState<File | null>(null)
   const [uploading, setUploading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [activeCycleYear, setActiveCycleYear] = useState("")
   const [dragOver, setDragOver] = useState(false)
+  const [submittedCategories, setSubmittedCategories] = useState<Set<string>>(new Set())
+
+  async function loadSubmittedCategories(cycleYear: string) {
+    if (!user?.uid || !cycleYear) return
+    try {
+      const docs = await getDocumentsByFacultyAndYear(user.uid, cycleYear)
+      setSubmittedCategories(new Set(docs.map(d => d.category)))
+    } catch (err) { console.error(err) }
+  }
 
   useEffect(() => {
     getActiveCycle().then(c => {
-      if (c) setActiveCycleYear(c.academicYear)
+      if (c) {
+        setActiveCycleYear(c.academicYear)
+        loadSubmittedCategories(c.academicYear)
+      }
     })
-  }, [])
+  }, [user])
+
+  const availableCategories = KPI_CATEGORIES.filter(c => !submittedCategories.has(c.id))
 
   function handleFileSelect(f: File) {
     if (f.type !== "application/pdf") {
@@ -48,9 +60,26 @@ export function UploadDocumentsPage() {
     try {
       // Generate unique filename
       const uniqueName = `${crypto.randomUUID()}_${file.name}`
-      const storageRef = ref(storage, `documents/${user.uid}/${uniqueName}`)
-      await uploadBytes(storageRef, file)
-      const url = await getDownloadURL(storageRef)
+
+      // Upload to Cloudinary
+      const formData = new FormData()
+      formData.append("file", file)
+      formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET!)
+      formData.append("folder", `faculty-documents/${user.uid}`)
+      formData.append("public_id", uniqueName.replace(".pdf", ""))
+
+      const res = await fetch(
+        `https://api.cloudinary.com/v1_1/${process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME}/raw/upload`,
+        { method: "POST", body: formData }
+      )
+
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}))
+        throw new Error(errorData?.error?.message || "Cloudinary upload failed")
+      }
+
+      const cloudinaryData = await res.json()
+      const url = cloudinaryData.secure_url
 
       const catName = KPI_CATEGORIES.find(c => c.id === category)?.name || category
 
@@ -59,7 +88,7 @@ export function UploadDocumentsPage() {
         facultyName: user.name,
         departmentId: user.departmentId || "",
         departmentName: user.departmentName || "",
-        category,
+        category: category as KPICategoryId,
         categoryName: catName,
         fileName: uniqueName,
         originalName: file.name,
@@ -82,15 +111,13 @@ export function UploadDocumentsPage() {
       setSuccess(true)
       setFile(null)
       setDescription("")
+      setCategory("")
       if (fileRef.current) fileRef.current.value = ""
+      // Reload submitted categories to update dropdown
+      await loadSubmittedCategories(activeCycleYear)
     } catch (err: any) {
       console.error("Upload error:", err)
-      const msg = err?.message || "Upload failed"
-      if (msg.includes("unauthorized") || msg.includes("permission") || msg.includes("403")) {
-        toast.error("Storage permission denied. Please update Firebase Storage rules.")
-      } else {
-        toast.error(msg)
-      }
+      toast.error(err?.message || "Upload failed")
     }
     setUploading(false)
   }
@@ -121,10 +148,14 @@ export function UploadDocumentsPage() {
               onChange={e => setCategory(e.target.value as KPICategoryId)}
               className="w-full h-10 rounded-md bg-secondary/50 border border-border px-3 text-sm text-foreground mt-1"
             >
-              {KPI_CATEGORIES.map(c => (
+              <option value="">Choose document category</option>
+              {availableCategories.map(c => (
                 <option key={c.id} value={c.id}>{c.name} ({c.weightage}%)</option>
               ))}
             </select>
+            {availableCategories.length === 0 && activeCycleYear && (
+              <p className="text-xs text-accent mt-1.5">✓ All categories already submitted for {activeCycleYear}</p>
+            )}
           </div>
 
           {/* Description */}
@@ -165,7 +196,7 @@ export function UploadDocumentsPage() {
 
           <Button
             onClick={handleUpload}
-            disabled={uploading || !file || !activeCycleYear}
+            disabled={uploading || !file || !activeCycleYear || !category}
             className="w-full h-12 bg-gradient-to-r from-primary to-blue-500 hover:opacity-90 text-base font-medium"
           >
             {uploading ? (

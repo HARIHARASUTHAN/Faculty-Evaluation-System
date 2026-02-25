@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { getDepartments, getUsersByRole, updateDepartment, type Department, type UserProfile } from "@/lib/firestore"
+import { getDepartments, getUsersByRole, updateDepartment, updateUserProfile, type Department, type UserProfile } from "@/lib/firestore"
 import { UserCheck, Building2, Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -25,14 +25,29 @@ export function AssignHodPage() {
     useEffect(() => { load() }, [])
 
     async function handleAssign(deptId: string, hodId: string) {
-        const hod = hods.find(h => h.id === hodId)
-        if (!hod) return
+        const dept = departments.find(d => d.id === deptId)
         setSaving(deptId)
         try {
-            await updateDepartment(deptId, { hodId: hod.id, hodName: hod.name })
-            toast.success(`${hod.name} assigned as HOD`)
+            if (!hodId) {
+                // Unassign HOD — clear departmentId on the old HOD's profile
+                if (dept?.hodId) {
+                    await updateUserProfile(dept.hodId, { departmentId: "", departmentName: "" })
+                }
+                await updateDepartment(deptId, { hodId: "", hodName: "" })
+                toast.success("HOD unassigned")
+            } else {
+                const hod = hods.find(h => h.id === hodId)
+                if (!hod) { setSaving(null); return }
+                await updateDepartment(deptId, { hodId: hod.id, hodName: hod.name })
+                // Also update the HOD's user profile with the correct department
+                await updateUserProfile(hod.id, {
+                    departmentId: deptId,
+                    departmentName: dept?.departmentName || "",
+                })
+                toast.success(`${hod.name} assigned as HOD`)
+            }
             await load()
-        } catch { toast.error("Failed to assign HOD") }
+        } catch { toast.error("Failed to update HOD") }
         setSaving(null)
     }
 
@@ -75,8 +90,8 @@ export function AssignHodPage() {
                                     disabled={saving === dept.id}
                                 >
                                     <option value="">Select HOD…</option>
-                                    {hods.map(h => (
-                                        <option key={h.id} value={h.id}>{h.name} ({h.email})</option>
+                                    {hods.filter(h => h.departmentId === dept.id).map(h => (
+                                        <option key={h.id} value={h.id}>{h.name}</option>
                                     ))}
                                 </select>
                                 {saving === dept.id && (

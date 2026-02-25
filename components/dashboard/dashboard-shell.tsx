@@ -8,9 +8,8 @@ import { AdminDashboard } from "./admin/admin-dashboard"
 import { FacultyDashboard } from "./faculty/faculty-dashboard"
 import { HodDashboard } from "./hod/hod-dashboard"
 import { Button } from "@/components/ui/button"
-import { Menu, LogOut, Bell, Search, Sun, Moon } from "lucide-react"
+import { Menu, LogOut, Sun, Moon } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Input } from "@/components/ui/input"
 
 export function DashboardShell() {
   const { user, logout } = useAuth()
@@ -84,25 +83,8 @@ export function DashboardShell() {
             </div>
           </div>
 
-          {/* Search bar */}
-          <div className="hidden md:flex relative max-w-xs flex-1 mx-8">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              placeholder="Search..."
-              className="h-9 bg-secondary/50 border-border pl-9 text-sm focus:border-primary"
-            />
-          </div>
 
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative hover:bg-secondary"
-              aria-label="Notifications"
-            >
-              <Bell className="h-5 w-5 text-muted-foreground" />
-              <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-accent animate-pulse" />
-            </Button>
 
             <Button
               variant="ghost"

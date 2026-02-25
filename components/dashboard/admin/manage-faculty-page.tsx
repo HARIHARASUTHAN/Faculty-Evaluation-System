@@ -18,10 +18,10 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import {
-  getAllUsers, getDepartments, createUserProfile, deleteUserProfile,
+  getAllUsers, getDepartments, createUserProfile, deleteUserProfile, updateUserProfile,
   type UserProfile, type Department
 } from "@/lib/firestore"
-import { Users, Plus, Loader2, Search, UserX, Trash2 } from "lucide-react"
+import { Users, Plus, Loader2, Search, UserX, Trash2, Pencil, X, Check } from "lucide-react"
 import { toast } from "sonner"
 import { createUserWithEmailAndPassword } from "firebase/auth"
 import { auth } from "@/lib/firebase"
@@ -38,6 +38,9 @@ export function ManageFacultyPage() {
   const [form, setForm] = useState({ name: "", email: "", password: "", departmentId: "", role: "faculty" as "faculty" | "hod" })
   const [adding, setAdding] = useState(false)
   const [deleting, setDeleting] = useState<string | null>(null)
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editForm, setEditForm] = useState({ name: "", departmentId: "", role: "faculty" as "faculty" | "hod" })
+  const [saving, setSaving] = useState(false)
 
   async function load() {
     try {
@@ -87,6 +90,44 @@ export function ManageFacultyPage() {
       toast.error(err?.message || "Failed to delete user")
     }
     setDeleting(null)
+  }
+
+  function startEdit(user: UserProfile) {
+    setEditingId(user.id)
+    setEditForm({
+      name: user.name,
+      departmentId: user.departmentId,
+      role: user.role as "faculty" | "hod",
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm({ name: "", departmentId: "", role: "faculty" })
+  }
+
+  async function handleSaveEdit(userId: string) {
+    if (!editForm.name || !editForm.departmentId) {
+      toast.error("Name and department are required")
+      return
+    }
+    setSaving(true)
+    try {
+      const dept = departments.find(d => d.id === editForm.departmentId)
+      await updateUserProfile(userId, {
+        name: editForm.name,
+        departmentId: editForm.departmentId,
+        departmentName: dept?.departmentName || "",
+        role: editForm.role,
+      })
+      toast.success("User updated successfully!")
+      setEditingId(null)
+      setEditForm({ name: "", departmentId: "", role: "faculty" })
+      await load()
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to update user")
+    }
+    setSaving(false)
   }
 
   const filtered = users
@@ -211,51 +252,117 @@ export function ManageFacultyPage() {
               </thead>
               <tbody>
                 {filtered.map((u) => (
-                  <tr key={u.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
-                    <td className="px-5 py-3.5 text-sm font-medium text-foreground">{u.name}</td>
-                    <td className="px-5 py-3.5 text-sm text-muted-foreground">{u.email}</td>
-                    <td className="px-5 py-3.5 text-sm text-muted-foreground">{u.departmentName || "—"}</td>
-                    <td className="px-5 py-3.5">
-                      <Badge className={u.role === "hod" ? "bg-accent/15 text-accent border-accent/20" : "bg-primary/15 text-primary border-primary/20"}>
-                        {u.role === "hod" ? "HOD" : "Faculty"}
-                      </Badge>
-                    </td>
-                    <td className="px-5 py-3.5 text-center">
-                      <AlertDialog>
-                        <AlertDialogTrigger asChild>
+                  editingId === u.id ? (
+                    <tr key={u.id} className="border-b border-border/50 bg-primary/5">
+                      <td className="px-5 py-3">
+                        <Input
+                          value={editForm.name}
+                          onChange={e => setEditForm({ ...editForm, name: e.target.value })}
+                          className="bg-secondary/50 border-border h-9 text-sm"
+                          placeholder="Full Name"
+                        />
+                      </td>
+                      <td className="px-5 py-3 text-sm text-muted-foreground">{u.email}</td>
+                      <td className="px-5 py-3">
+                        <select
+                          value={editForm.departmentId}
+                          onChange={e => setEditForm({ ...editForm, departmentId: e.target.value })}
+                          className="w-full h-9 rounded-md bg-secondary/50 border border-border px-3 text-sm text-foreground"
+                        >
+                          <option value="">Select department</option>
+                          {departments.map(d => <option key={d.id} value={d.id}>{d.departmentName}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-5 py-3">
+                        <select
+                          value={editForm.role}
+                          onChange={e => setEditForm({ ...editForm, role: e.target.value as "faculty" | "hod" })}
+                          className="w-full h-9 rounded-md bg-secondary/50 border border-border px-3 text-sm text-foreground"
+                        >
+                          <option value="faculty">Faculty</option>
+                          <option value="hod">HOD</option>
+                        </select>
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <div className="flex items-center justify-center gap-1">
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                            disabled={deleting === u.id}
+                            className="h-8 w-8 text-accent hover:text-accent hover:bg-accent/10"
+                            disabled={saving}
+                            onClick={() => handleSaveEdit(u.id)}
                           >
-                            {deleting === u.id ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="h-4 w-4" />
-                            )}
+                            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Check className="h-4 w-4" />}
                           </Button>
-                        </AlertDialogTrigger>
-                        <AlertDialogContent>
-                          <AlertDialogHeader>
-                            <AlertDialogTitle>Delete {u.role === "hod" ? "HOD" : "Faculty"}</AlertDialogTitle>
-                            <AlertDialogDescription>
-                              Are you sure you want to delete <strong>{u.name}</strong>? This action cannot be undone and will permanently remove this user from the system.
-                            </AlertDialogDescription>
-                          </AlertDialogHeader>
-                          <AlertDialogFooter>
-                            <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={() => handleDelete(u)}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
-                              Delete
-                            </AlertDialogAction>
-                          </AlertDialogFooter>
-                        </AlertDialogContent>
-                      </AlertDialog>
-                    </td>
-                  </tr>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                            onClick={cancelEdit}
+                            disabled={saving}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : (
+                    <tr key={u.id} className="border-b border-border/50 hover:bg-secondary/20 transition-colors">
+                      <td className="px-5 py-3.5 text-sm font-medium text-foreground">{u.name}</td>
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground">{u.email}</td>
+                      <td className="px-5 py-3.5 text-sm text-muted-foreground">{u.departmentName || "—"}</td>
+                      <td className="px-5 py-3.5">
+                        <Badge className={u.role === "hod" ? "bg-accent/15 text-accent border-accent/20" : "bg-primary/15 text-primary border-primary/20"}>
+                          {u.role === "hod" ? "HOD" : "Faculty"}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3.5 text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                            onClick={() => startEdit(u)}
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                                disabled={deleting === u.id}
+                              >
+                                {deleting === u.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Delete {u.role === "hod" ? "HOD" : "Faculty"}</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Are you sure you want to delete <strong>{u.name}</strong>? This action cannot be undone and will permanently remove this user from the system.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDelete(u)}
+                                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                >
+                                  Delete
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </div>
+                      </td>
+                    </tr>
+                  )
                 ))}
               </tbody>
             </table>

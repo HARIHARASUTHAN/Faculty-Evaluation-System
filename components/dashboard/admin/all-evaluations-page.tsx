@@ -14,7 +14,15 @@ export function AllEvaluationsPage() {
     async function load() {
       try {
         const data = await getFinalScores()
-        setScores(data.sort((a, b) => b.totalScore - a.totalScore))
+        // Deduplicate by facultyId, keep only the latest score
+        const latestByFaculty = new Map<string, FinalScore>()
+        data.forEach(s => {
+          const existing = latestByFaculty.get(s.facultyId)
+          if (!existing || (s.submittedAt > existing.submittedAt)) {
+            latestByFaculty.set(s.facultyId, s)
+          }
+        })
+        setScores(Array.from(latestByFaculty.values()).sort((a, b) => b.totalScore - a.totalScore))
       } catch (err) { console.error(err) }
       setLoading(false)
     }
