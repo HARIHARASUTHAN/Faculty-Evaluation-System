@@ -8,14 +8,28 @@ import { AdminDashboard } from "./admin/admin-dashboard"
 import { FacultyDashboard } from "./faculty/faculty-dashboard"
 import { HodDashboard } from "./hod/hod-dashboard"
 import { Button } from "@/components/ui/button"
-import { Menu, LogOut, Sun, Moon } from "lucide-react"
+import { Menu, LogOut, Sun, Moon, Bell, FileText } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 
 export function DashboardShell() {
   const { user, logout } = useAuth()
   const { theme, setTheme } = useTheme()
   const [currentPage, setCurrentPage] = useState("dashboard")
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [notificationSeen, setNotificationSeen] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("hod-notification-seen") === "true"
+    }
+    return false
+  })
+
+  const markNotificationSeen = (open: boolean) => {
+    if (open) {
+      setNotificationSeen(true)
+      localStorage.setItem("hod-notification-seen", "true")
+    }
+  }
 
   if (!user) return null
 
@@ -85,6 +99,49 @@ export function DashboardShell() {
 
 
           <div className="flex items-center gap-2">
+            {/* Notification Bell - HOD only */}
+            {user.role === "hod" && (
+              <Popover onOpenChange={markNotificationSeen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative hover:bg-secondary"
+                    aria-label="Notifications"
+                  >
+                    <Bell className="h-5 w-5 text-muted-foreground" />
+                    {!notificationSeen && (
+                      <span className="absolute -top-0.5 -right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground animate-pulse">
+                        1
+                      </span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-80 p-0" align="end">
+                  <div className="p-3 border-b border-border">
+                    <h4 className="font-semibold text-sm text-foreground">Notifications</h4>
+                  </div>
+                  <div className="p-2">
+                    <button
+                      onClick={() => {
+                        setCurrentPage("review-documents")
+                      }}
+                      className="flex items-start gap-3 w-full rounded-md p-3 text-left hover:bg-secondary/60 transition-colors"
+                    >
+                      <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+                        <FileText className="h-4 w-4 text-primary" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Pending Review</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          You have 1 document pending review. Go to Review Documents to approve or reject them.
+                        </p>
+                      </div>
+                    </button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            )}
 
             <Button
               variant="ghost"

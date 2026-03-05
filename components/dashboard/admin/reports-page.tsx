@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { getDepartments, getFinalScores, type Department, type FinalScore, KPI_CATEGORIES } from "@/lib/firestore"
-import { BarChart3, TrendingUp, Award } from "lucide-react"
+import { BarChart3, TrendingUp } from "lucide-react"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis } from "recharts"
 
 export function ReportsPage() {
   const [deptData, setDeptData] = useState<any[]>([])
-  const [topFaculty, setTopFaculty] = useState<FinalScore[]>([])
+
   const [categoryAvg, setCategoryAvg] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
@@ -29,15 +29,7 @@ export function ReportsPage() {
           avg: d.count > 0 ? Math.round(d.total / d.count * 10) / 10 : 0,
         })))
 
-        // Top faculty — deduplicate by facultyId, keep only latest score
-        const latestByFaculty = new Map<string, FinalScore>()
-        scores.forEach(s => {
-          const existing = latestByFaculty.get(s.facultyId)
-          if (!existing || (s.submittedAt > existing.submittedAt)) {
-            latestByFaculty.set(s.facultyId, s)
-          }
-        })
-        setTopFaculty(Array.from(latestByFaculty.values()).sort((a, b) => b.totalScore - a.totalScore).slice(0, 5))
+
 
         // Category averages across all scores
         const catTotals: Record<string, { total: number; count: number }> = {}
@@ -119,34 +111,6 @@ export function ReportsPage() {
           </CardContent>
         </Card>
       </div>
-
-      {/* Top Faculty */}
-      <Card className="glass-card border-border/50">
-        <CardHeader><CardTitle className="font-display text-lg flex items-center gap-2"><Award className="h-5 w-5 text-accent" />Top Performing Faculty</CardTitle></CardHeader>
-        <CardContent>
-          {topFaculty.length > 0 ? (
-            <div className="space-y-3">
-              {topFaculty.map((f, i) => (
-                <div key={f.id} className="flex items-center gap-4 p-3 rounded-xl bg-secondary/20 hover:bg-secondary/30 transition-colors">
-                  <div className={`flex h-9 w-9 items-center justify-center rounded-lg font-display font-bold text-sm ${i === 0 ? "bg-accent/15 text-accent" : i === 1 ? "bg-primary/15 text-primary" : "bg-secondary/50 text-muted-foreground"}`}>
-                    #{i + 1}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground text-sm truncate">{f.facultyName}</p>
-                    <p className="text-xs text-muted-foreground">{f.departmentName} • {f.academicYear}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-display font-bold text-foreground">{f.totalScore}<span className="text-xs text-muted-foreground">/100</span></p>
-                    <p className={`text-xs font-medium ${f.grade === "A" ? "text-accent" : f.grade === "B" ? "text-primary" : "text-amber-400"}`}>Grade {f.grade}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-8 text-muted-foreground text-sm">No evaluations completed yet</div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   )
 }

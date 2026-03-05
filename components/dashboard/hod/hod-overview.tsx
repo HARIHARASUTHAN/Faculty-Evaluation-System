@@ -86,17 +86,6 @@ export function HodOverview() {
                 ))}
             </div>
 
-            {stats.pending > 0 && (
-                <Card className="glass-card border-amber-500/20">
-                    <CardContent className="p-5 flex items-center gap-3">
-                        <AlertTriangle className="h-5 w-5 text-amber-400" />
-                        <p className="text-sm text-foreground">
-                            You have <span className="font-bold text-amber-400">{stats.pending}</span> documents pending review.
-                            Go to <span className="text-primary font-medium">Review Documents</span> to approve or reject them.
-                        </p>
-                    </CardContent>
-                </Card>
-            )}
         </div>
     )
 }

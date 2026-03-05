@@ -6,7 +6,7 @@ import { useAuth } from "@/lib/auth-context"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { GraduationCap, Loader2, Mail, Lock, ArrowLeft, Shield, Users, BarChart3 } from "lucide-react"
+import { GraduationCap, Loader2, Mail, Lock, ArrowLeft } from "lucide-react"
 import { toast } from "sonner"
 
 export function LoginForm() {
@@ -48,7 +48,7 @@ export function LoginForm() {
 
   if (showForgotPassword) {
     return (
-      <div className="login-bg grid-pattern flex min-h-screen items-center justify-center p-4">
+      <div className="login-bg flex min-h-screen items-center justify-center p-4">
         <div className="bg-gradient-orb bg-gradient-orb-1" />
         <div className="bg-gradient-orb bg-gradient-orb-2" />
         <div className="bg-gradient-orb bg-gradient-orb-3" />
@@ -130,7 +130,7 @@ export function LoginForm() {
   }
 
   return (
-    <div className="login-bg grid-pattern flex min-h-screen">
+    <div className="login-bg flex min-h-screen">
       <div className="bg-gradient-orb bg-gradient-orb-1" />
       <div className="bg-gradient-orb bg-gradient-orb-2" />
       <div className="bg-gradient-orb bg-gradient-orb-3" />
@@ -146,31 +146,6 @@ export function LoginForm() {
             <br />
             <span className="text-foreground">Evaluation System</span>
           </h1>
-          <p className="mt-4 text-lg leading-relaxed text-muted-foreground">
-            A modern, comprehensive platform for managing faculty evaluations, tracking performance, and
-            generating actionable insights for academic excellence.
-          </p>
-
-          <div className="mt-10 grid grid-cols-3 gap-4">
-            {[
-              { icon: <Shield className="h-5 w-5 text-primary" />, label: "Secure Auth", desc: "Firebase powered" },
-              { icon: <Users className="h-5 w-5 text-accent" />, label: "Multi-Role", desc: "Admin • Faculty • HOD" },
-              {
-                icon: <BarChart3 className="h-5 w-5 text-chart-5" />,
-                label: "Analytics",
-                desc: "Rich reports",
-              },
-            ].map((item, i) => (
-              <div
-                key={i}
-                className={`glass-card rounded-xl p-4 animate-fade-in-up stagger-${i + 2}`}
-              >
-                <div className="mb-2">{item.icon}</div>
-                <p className="text-sm font-medium text-foreground">{item.label}</p>
-                <p className="text-xs text-muted-foreground">{item.desc}</p>
-              </div>
-            ))}
-          </div>
         </div>
       </div>
 

@@ -157,7 +157,7 @@ export function EvaluationCyclesPage() {
                                         </>
                                     )}
                                     {cycle.status === "locked" && (
-                                        <Button size="sm" onClick={() => handleStatusChange(cycle.id, "inactive")} variant="ghost" className="text-muted-foreground">
+                                        <Button size="sm" onClick={() => handleStatusChange(cycle.id, "active")} variant="ghost" className="text-muted-foreground">
                                             <Unlock className="h-3.5 w-3.5 mr-1" /> Unlock
                                         </Button>
                                     )}

@@ -82,8 +82,8 @@ export function HodFinalEvaluationPage() {
     return (
         <div className="space-y-6">
             <div>
-                <h2 className="font-display text-2xl font-bold text-foreground">Final Evaluation</h2>
-                <p className="text-sm text-muted-foreground mt-1">
+                <h2 className="font-display text-3xl font-bold tracking-tight text-foreground">Final Evaluation</h2>
+                <p className="text-base text-muted-foreground mt-2 font-medium">
                     Calculate and submit final scores for {activeCycle?.academicYear || "—"}
                 </p>
             </div>
@@ -109,53 +109,54 @@ export function HodFinalEvaluationPage() {
 
                         return (
                             <Card key={f.id} className={`glass-card border-border/50 animate-fade-in-up stagger-${Math.min(i + 1, 6)}`}>
-                                <CardContent className="p-5">
+                                <CardContent className="p-6">
                                     <div className="flex items-start justify-between flex-wrap gap-4">
                                         <div className="flex items-center gap-4">
-                                            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
-                                                <User className="h-6 w-6 text-primary" />
+                                            <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-primary/10">
+                                                <User className="h-7 w-7 text-primary" />
                                             </div>
                                             <div>
-                                                <p className="font-display text-lg font-bold text-foreground">{f.name}</p>
-                                                <p className="text-xs text-muted-foreground">{f.email} • {facultyDocs.length} documents</p>
+                                                <p className="font-display text-xl font-bold text-foreground">{f.name}</p>
+                                                <p className="text-sm font-medium text-muted-foreground">{f.email} • {facultyDocs.length} documents</p>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <p className="font-display text-3xl font-bold text-foreground">{totalScore}<span className="text-sm text-muted-foreground">/100</span></p>
-                                            <p className={`text-sm font-bold ${grade === "A" ? "text-accent" : grade === "B" ? "text-primary" : grade === "C" ? "text-amber-400" : "text-destructive"}`}>
+                                            <p className="font-display text-4xl font-extrabold text-foreground">{totalScore}<span className="text-base font-semibold text-muted-foreground">/100</span></p>
+                                            <p className={`text-base font-bold mt-1 ${grade === "A" ? "text-accent" : grade === "B" ? "text-primary" : grade === "C" ? "text-amber-400" : "text-destructive"}`}>
                                                 Grade {grade}
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Category breakdown */}
-                                    <div className="mt-4 grid grid-cols-2 md:grid-cols-3 gap-2">
+                                    <div className="mt-5 grid grid-cols-2 md:grid-cols-3 gap-3">
                                         {KPI_CATEGORIES.map(cat => {
                                             const cs = categoryScores[cat.id] || { avgScore: 0, weightedScore: 0, docCount: 0 }
                                             return (
-                                                <div key={cat.id} className="rounded-lg bg-secondary/30 p-2.5">
-                                                    <p className="text-[10px] text-muted-foreground truncate">{cat.name}</p>
-                                                    <p className="font-display text-sm font-bold text-foreground">
-                                                        {cs.weightedScore}<span className="text-[10px] text-muted-foreground">/{cat.weightage}</span>
+                                                <div key={cat.id} className="rounded-xl bg-secondary/40 p-4 border border-border/30">
+                                                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide truncate">{cat.name}</p>
+                                                    <p className="font-display text-xl font-bold text-foreground mt-1">
+                                                        {cs.weightedScore}<span className="text-sm font-semibold text-muted-foreground">/{cat.weightage}</span>
                                                     </p>
-                                                    <p className="text-[10px] text-muted-foreground">{cs.docCount} doc(s), avg {cs.avgScore}/5</p>
+                                                    <p className="text-xs font-medium text-muted-foreground mt-0.5">{cs.docCount} doc(s) • avg {cs.avgScore}/5</p>
                                                 </div>
                                             )
                                         })}
                                     </div>
 
-                                    <div className="mt-4 flex justify-end">
+                                    <div className="mt-5 flex justify-end">
                                         {isSubmitted ? (
-                                            <div className="flex items-center gap-2 text-accent text-sm">
-                                                <CheckCircle className="h-4 w-4" /> Submitted
+                                            <div className="flex items-center gap-2 text-accent text-base font-semibold">
+                                                <CheckCircle className="h-5 w-5" /> Submitted
                                             </div>
                                         ) : (
                                             <Button
                                                 onClick={() => handleSubmitFinal(f)}
                                                 disabled={submitting === f.id}
-                                                className="bg-gradient-to-r from-primary to-blue-500 hover:opacity-90"
+                                                size="lg"
+                                                className="bg-gradient-to-r from-primary to-blue-500 hover:opacity-90 text-base font-semibold px-6"
                                             >
-                                                {submitting === f.id ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Send className="h-4 w-4 mr-1" />}
+                                                {submitting === f.id ? <Loader2 className="h-5 w-5 animate-spin mr-2" /> : <Send className="h-5 w-5 mr-2" />}
                                                 Submit Final Evaluation
                                             </Button>
                                         )}
