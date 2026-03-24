@@ -75,7 +75,6 @@ export function AdminOverview() {
             name: f.facultyName,
             dept: f.departmentName,
             score: f.totalScore,
-            grade: f.grade,
             academicYear: f.academicYear
           }))
         setTopFaculty(facultyList)
@@ -185,9 +184,7 @@ export function AdminOverview() {
                         {f.score}
                         <span className="text-[10px] text-muted-foreground ml-0.5">/100</span>
                       </p>
-                      <p className={`text-[10px] font-medium ${f.grade === "A" ? "text-accent" : f.grade === "B" ? "text-primary" : "text-amber-400"}`}>
-                        Grade {f.grade}
-                      </p>
+
                     </div>
                   </div>
                 ))}

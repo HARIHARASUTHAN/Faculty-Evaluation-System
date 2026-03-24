@@ -29,6 +29,25 @@ export const KPI_CATEGORIES = [
 
 export type KPICategoryId = typeof KPI_CATEGORIES[number]["id"]
 
+// ─── Category Document Targets ─────────────────────────────
+export const CATEGORY_TARGETS: Record<KPICategoryId, number> = {
+    "research-publications": 1,
+    "conferences-proceedings": 2,
+    "fdp-workshops": 2,
+    "teaching-excellence": 1,
+    "patents-innovation": 1,
+    "admin-contribution": 2,
+    "nptel-certificates": 1,
+}
+
+/** Get the max score for a category — halved when target is 2 */
+export function getMaxScore(category: string): number {
+    const cat = KPI_CATEGORIES.find(c => c.id === category)
+    const weightage = cat ? cat.weightage : 10
+    const target = CATEGORY_TARGETS[category as KPICategoryId]
+    return target === 2 ? weightage / 2 : weightage
+}
+
 // ─── Grade Calculation ──────────────────────────────────────
 export function calculateGrade(score: number): string {
     if (score >= 85) return "A"
@@ -92,7 +111,7 @@ export interface DocumentEvaluation {
     documentId: string
     hodId: string
     hodName: string
-    score: number // 1-5
+    score: number // out of category weightage (e.g. 20, 15, 10)
     remarks: string
     evaluatedAt: string
 }
@@ -129,6 +148,35 @@ export interface AuditLog {
     action: string
     details: string
     timestamp: string
+}
+
+export interface Evaluation {
+    id: string
+    facultyId: string
+    facultyName?: string
+    evaluatorId?: string
+    department?: string
+    academicYear: string
+    status: "submitted" | "under-review" | "evaluated"
+    scores?: Record<string, number>
+    finalScore?: number
+    comments?: string
+    answers?: Record<string, { score: number; comment: string }>
+    documents?: string[]
+}
+
+export interface Criteria {
+    id: string
+    title: string
+    description: string
+    weightage: number
+    category: string
+}
+
+export interface FacultyMember {
+    id: string
+    name: string
+    department: string
 }
 
 // ─── Department CRUD ────────────────────────────────────────
@@ -238,6 +286,18 @@ export async function updateDocument(id: string, data: Partial<FacultyDocument>)
 
 export async function deleteDocument(id: string): Promise<void> {
     await deleteDoc(doc(db, "documents", id))
+}
+
+export async function deleteDocumentAndEvaluations(documentId: string): Promise<void> {
+    // 1. Delete associated evaluations
+    const q = query(collection(db, "documentEvaluations"), where("documentId", "==", documentId))
+    const evalSnapshot = await getDocs(q)
+    const evalDeletes = evalSnapshot.docs.map(d => deleteDoc(d.ref))
+    
+    // 2. Delete the document itself
+    const docDelete = deleteDoc(doc(db, "documents", documentId))
+    
+    await Promise.all([...evalDeletes, docDelete])
 }
 
 // ─── Document Evaluation CRUD ───────────────────────────────
@@ -398,11 +458,10 @@ export function calculateWeightedScores(
         })
 
         const avgScore = docScores.length > 0
-            ? Math.min(docScores.reduce((s, v) => s + v, 0) / docScores.length, 5)
+            ? Math.min(docScores.reduce((s, v) => s + v, 0) / docScores.length, cat.weightage)
             : 0
-        // Normalize 1-5 scale to 0-100, then apply weightage (clamped to max)
-        const normalizedScore = (avgScore / 5) * 100
-        const weightedScore = Math.min((normalizedScore * cat.weightage) / 100, cat.weightage)
+        // Score is already out of cat.weightage, so weightedScore = avgScore (clamped)
+        const weightedScore = Math.min(avgScore, cat.weightage)
 
         categoryScores[cat.id] = { avgScore: Math.round(avgScore * 10) / 10, weightedScore: Math.round(weightedScore * 10) / 10, docCount: docScores.length }
     })
@@ -412,4 +471,100 @@ export function calculateWeightedScores(
     ) / 10
 
     return { categoryScores, totalScore }
+}
+
+// ─── Evaluation CRUD ────────────────────────────────────────
+export async function getEvaluationsByFaculty(facultyId: string): Promise<Evaluation[]> {
+    const q = query(collection(db, "evaluations"), where("facultyId", "==", facultyId))
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Evaluation))
+}
+
+export async function getEvaluationsByEvaluator(evaluatorId: string): Promise<Evaluation[]> {
+    const q = query(collection(db, "evaluations"), where("evaluatorId", "==", evaluatorId))
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Evaluation))
+}
+
+export async function updateEvaluation(id: string, data: Partial<Evaluation>): Promise<void> {
+    await updateDoc(doc(db, "evaluations", id), data as DocumentData)
+}
+
+export async function addSelfEvaluation(data: Omit<Evaluation, "id">): Promise<string> {
+    const docRef = await addDoc(collection(db, "evaluations"), data)
+    return docRef.id
+}
+
+// ─── Criteria CRUD ──────────────────────────────────────────
+export async function getCriteria(): Promise<Criteria[]> {
+    const snapshot = await getDocs(collection(db, "criteria"))
+    return snapshot.docs.map((d) => ({ id: d.id, ...d.data() } as Criteria))
+}
+
+export async function addCriteria(data: Omit<Criteria, "id">): Promise<string> {
+    const docRef = await addDoc(collection(db, "criteria"), data)
+    return docRef.id
+}
+
+export async function deleteCriteria(id: string): Promise<void> {
+    await deleteDoc(doc(db, "criteria", id))
+}
+
+// ─── Faculty Members ────────────────────────────────────────
+export async function getFacultyMembers(): Promise<FacultyMember[]> {
+    const q = query(collection(db, "users"), where("role", "==", "faculty"))
+    const snapshot = await getDocs(q)
+    return snapshot.docs.map((d) => {
+        const data = d.data()
+        return { id: d.id, name: data.name, department: data.departmentName || "" } as FacultyMember
+    })
+}
+
+// ─── Faculty ID Generation ──────────────────────────────────
+const DEPT_ABBREVIATIONS: Record<string, string> = {
+    "computer science": "CS",
+    "computer science and engineering": "CSE",
+    "information technology": "IT",
+    "electronics": "ECE",
+    "electronics and communication": "ECE",
+    "electronics and communication engineering": "ECE",
+    "electrical": "EEE",
+    "electrical and electronics": "EEE",
+    "electrical and electronics engineering": "EEE",
+    "mechanical": "MECH",
+    "mechanical engineering": "MECH",
+    "civil": "CIVIL",
+    "civil engineering": "CIVIL",
+    "mathematics": "MATH",
+    "physics": "PHY",
+    "chemistry": "CHEM",
+    "biotechnology": "BT",
+    "artificial intelligence": "AI",
+    "data science": "DS",
+}
+
+function getDeptAbbreviation(departmentName: string): string {
+    const key = departmentName.toLowerCase().trim()
+    if (DEPT_ABBREVIATIONS[key]) return DEPT_ABBREVIATIONS[key]
+    // Fallback: take first letter of each word
+    return departmentName
+        .split(/\s+/)
+        .map(w => w[0]?.toUpperCase() || "")
+        .join("")
+        || "DEPT"
+}
+
+export async function generateFacultyId(departmentName: string): Promise<string> {
+    const deptAbbr = getDeptAbbreviation(departmentName)
+
+    // Count existing faculty in this department to determine next serial
+    const q = query(
+        collection(db, "users"),
+        where("departmentName", "==", departmentName),
+        where("role", "==", "faculty")
+    )
+    const snapshot = await getDocs(q)
+    const serial = (snapshot.size + 1).toString().padStart(3, "0")
+
+    return `FAC-${deptAbbr}-${serial}`
 }

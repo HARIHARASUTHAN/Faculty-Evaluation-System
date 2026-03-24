@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { useAuth } from "@/lib/auth-context"
-import { addDocument, getActiveCycle, getDocumentsByFacultyAndYear, addAuditLog, KPI_CATEGORIES, type KPICategoryId } from "@/lib/firestore"
+import { addDocument, getActiveCycle, getDocumentsByFacultyAndYear, addAuditLog, KPI_CATEGORIES, CATEGORY_TARGETS, type KPICategoryId } from "@/lib/firestore"
 import { Upload, FileText, Loader2, CheckCircle, AlertTriangle } from "lucide-react"
 import { toast } from "sonner"
 
@@ -20,13 +20,17 @@ export function UploadDocumentsPage() {
   const [success, setSuccess] = useState(false)
   const [activeCycleYear, setActiveCycleYear] = useState("")
   const [dragOver, setDragOver] = useState(false)
-  const [submittedCategories, setSubmittedCategories] = useState<Set<string>>(new Set())
+  const [submittedCategoryCounts, setSubmittedCategoryCounts] = useState<Record<string, number>>({})
 
   async function loadSubmittedCategories(cycleYear: string) {
     if (!user?.uid || !cycleYear) return
     try {
       const docs = await getDocumentsByFacultyAndYear(user.uid, cycleYear)
-      setSubmittedCategories(new Set(docs.map(d => d.category)))
+      const counts: Record<string, number> = {}
+      docs.forEach(d => {
+        counts[d.category] = (counts[d.category] || 0) + 1
+      })
+      setSubmittedCategoryCounts(counts)
     } catch (err) { console.error(err) }
   }
 
@@ -38,8 +42,6 @@ export function UploadDocumentsPage() {
       }
     })
   }, [user])
-
-  const availableCategories = KPI_CATEGORIES.filter(c => !submittedCategories.has(c.id))
 
   function handleFileSelect(f: File) {
     if (f.type !== "application/pdf") {
@@ -122,6 +124,8 @@ export function UploadDocumentsPage() {
     setUploading(false)
   }
 
+
+
   return (
     <div className="space-y-6">
       <div>
@@ -138,6 +142,8 @@ export function UploadDocumentsPage() {
         </Card>
       )}
 
+
+
       <Card className="glass-card border-border/50">
         <CardContent className="p-6 space-y-5">
           {/* Category selection */}
@@ -149,13 +155,10 @@ export function UploadDocumentsPage() {
               className="w-full h-10 rounded-md bg-secondary/50 border border-border px-3 text-sm text-foreground mt-1"
             >
               <option value="">Choose document category</option>
-              {availableCategories.map(c => (
-                <option key={c.id} value={c.id}>{c.name} ({c.weightage}%)</option>
+              {KPI_CATEGORIES.filter(c => (submittedCategoryCounts[c.id] || 0) < CATEGORY_TARGETS[c.id]).map(c => (
+                <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </select>
-            {availableCategories.length === 0 && activeCycleYear && (
-              <p className="text-xs text-accent mt-1.5">✓ All categories already submitted for {activeCycleYear}</p>
-            )}
           </div>
 
           {/* Description */}
@@ -219,7 +222,6 @@ export function UploadDocumentsPage() {
             <li>• Max size: <span className="text-foreground">5 MB</span></li>
             <li>• Select the correct category before uploading</li>
             <li>• Rejected documents can be re-uploaded</li>
-            <li>• Duplicate uploads are tracked by filename</li>
           </ul>
         </CardContent>
       </Card>

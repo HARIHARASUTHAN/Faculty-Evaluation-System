@@ -4,14 +4,18 @@ import { useEffect, useState } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useAuth } from "@/lib/auth-context"
 import {
-  getDocumentsByFaculty, getFinalScoresByFaculty, getActiveCycle, getFinalScores,
+  getDocumentsByFaculty, getDocumentsByFacultyAndYear, getFinalScoresByFaculty, getActiveCycle, getFinalScores,
+  getDocumentEvaluations,
+  KPI_CATEGORIES, CATEGORY_TARGETS,
   type FacultyDocument, type FinalScore, type EvaluationCycle
 } from "@/lib/firestore"
-import { Upload, FileText, CheckCircle, Clock, XCircle, TrendingUp, CalendarClock, Award } from "lucide-react"
+import { Upload, FileText, CheckCircle, Clock, XCircle, TrendingUp, CalendarClock, Award, Target } from "lucide-react"
 
 export function FacultyOverview() {
   const { user } = useAuth()
   const [docs, setDocs] = useState<FacultyDocument[]>([])
+  const [cycleDocs, setCycleDocs] = useState<FacultyDocument[]>([])
+  const [evaluatedDocIds, setEvaluatedDocIds] = useState<Set<string>>(new Set())
   const [scores, setScores] = useState<FinalScore[]>([])
   const [activeCycle, setActiveCycle] = useState<EvaluationCycle | null>(null)
   const [topFaculty, setTopFaculty] = useState<FinalScore[]>([])
@@ -30,6 +34,23 @@ export function FacultyOverview() {
         setDocs(d)
         setScores(s)
         setActiveCycle(c)
+
+        // Load cycle-specific docs for target tracking
+        if (c) {
+          const cd = await getDocumentsByFacultyAndYear(user.uid, c.academicYear)
+          setCycleDocs(cd)
+
+          // Load evaluations for these docs to check if score awarded
+          const evalPromises = cd.map(doc => getDocumentEvaluations(doc.id))
+          const evalsResults = await Promise.all(evalPromises)
+          const evaluatedSet = new Set<string>()
+          evalsResults.forEach((evals, index) => {
+            if (evals.length > 0) {
+              evaluatedSet.add(cd[index].id)
+            }
+          })
+          setEvaluatedDocIds(evaluatedSet)
+        }
 
         // Top faculty — deduplicate by facultyId, keep only latest score
         const latestByFaculty = new Map<string, FinalScore>()
@@ -54,6 +75,17 @@ export function FacultyOverview() {
   const approved = docs.filter(d => d.status === "approved").length
   const rejected = docs.filter(d => d.status === "rejected").length
   const latestScore = scores.length > 0 ? scores.sort((a, b) => new Date(b.submittedAt).getTime() - new Date(a.submittedAt).getTime())[0] : null
+
+  // Target tracking: count approved & scored docs per category for active cycle
+  const categoryCompletedCounts: Record<string, number> = {}
+  cycleDocs.forEach(d => {
+    if (d.status === "approved" && evaluatedDocIds.has(d.id)) {
+      categoryCompletedCounts[d.category] = (categoryCompletedCounts[d.category] || 0) + 1
+    }
+  })
+  const completedCategories = KPI_CATEGORIES.filter(cat => (categoryCompletedCounts[cat.id] || 0) >= CATEGORY_TARGETS[cat.id]).length
+
+
 
   const cards = [
     { label: "Documents Uploaded", value: docs.length, icon: Upload, gradient: "stat-card-gradient-blue" },
@@ -95,6 +127,37 @@ export function FacultyOverview() {
         ))}
       </div>
 
+      {/* Upload Targets */}
+      {activeCycle && (
+        <Card className={`glass-card ${completedCategories === KPI_CATEGORIES.length ? "border-accent/30" : "border-primary/20"}`}>
+          <CardContent className="p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <Target className={`h-5 w-5 ${completedCategories === KPI_CATEGORIES.length ? "text-accent" : "text-primary"}`} />
+              <p className="text-sm font-semibold text-foreground">
+                Targets — {completedCategories} of {KPI_CATEGORIES.length} completed
+              </p>
+              {completedCategories === KPI_CATEGORIES.length && (
+                <span className="ml-auto text-xs font-semibold text-accent bg-accent/10 px-2 py-0.5 rounded-full">All targets met ✓</span>
+              )}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2">
+              {KPI_CATEGORIES.map(cat => {
+                const completed = categoryCompletedCounts[cat.id] || 0
+                const target = CATEGORY_TARGETS[cat.id]
+                const isComplete = completed >= target
+                return (
+                  <div key={cat.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${isComplete ? "bg-accent/10 text-accent" : "bg-secondary/30 text-muted-foreground"}`}>
+                    {isComplete ? <CheckCircle className="h-3.5 w-3.5 shrink-0" /> : <span className="h-3.5 w-3.5 rounded-full border border-current shrink-0" />}
+                    <span className="truncate">{cat.name}</span>
+                    <span className="ml-auto font-semibold whitespace-nowrap">{completed}/{target}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Recent activity */}
       {rejected > 0 && (
         <Card className="glass-card border-destructive/20">
@@ -117,9 +180,7 @@ export function FacultyOverview() {
                 <p className="font-display text-4xl font-bold text-foreground">{latestScore.totalScore}</p>
                 <p className="text-xs text-muted-foreground">/100</p>
               </div>
-              <div className={`font-display text-2xl font-bold ${latestScore.grade === "A" ? "text-accent" : latestScore.grade === "B" ? "text-primary" : latestScore.grade === "C" ? "text-amber-400" : "text-destructive"}`}>
-                Grade {latestScore.grade}
-              </div>
+
               <div className="text-xs text-muted-foreground">{latestScore.academicYear}</div>
             </div>
           </CardContent>
@@ -143,7 +204,7 @@ export function FacultyOverview() {
                   </div>
                   <div className="text-right">
                     <p className="font-display font-bold text-foreground">{f.totalScore}<span className="text-xs text-muted-foreground">/100</span></p>
-                    <p className={`text-xs font-medium ${f.grade === "A" ? "text-accent" : f.grade === "B" ? "text-primary" : "text-amber-400"}`}>Grade {f.grade}</p>
+
                   </div>
                 </div>
               ))}

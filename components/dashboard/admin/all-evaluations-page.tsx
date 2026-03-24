@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { getFinalScores, type FinalScore, calculateGrade, gradeColor } from "@/lib/firestore"
+import { getFinalScores, type FinalScore } from "@/lib/firestore"
 import { FileText, TrendingUp } from "lucide-react"
 
 export function AllEvaluationsPage() {
@@ -55,7 +55,7 @@ export function AllEvaluationsPage() {
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Department</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Year</th>
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Score</th>
-                  <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Grade</th>
+
                   <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wider text-muted-foreground">Evaluated By</th>
                 </tr>
               </thead>
@@ -69,11 +69,7 @@ export function AllEvaluationsPage() {
                       <span className="font-display font-bold text-foreground">{s.totalScore}</span>
                       <span className="text-xs text-muted-foreground">/100</span>
                     </td>
-                    <td className="px-5 py-3.5">
-                      <Badge className={`${s.grade === "A" ? "bg-accent/15 text-accent border-accent/20" : s.grade === "B" ? "bg-primary/15 text-primary border-primary/20" : s.grade === "C" ? "bg-amber-500/15 text-amber-400 border-amber-500/20" : "bg-destructive/15 text-destructive border-destructive/20"}`}>
-                        Grade {s.grade}
-                      </Badge>
-                    </td>
+
                     <td className="px-5 py-3.5 text-sm text-muted-foreground">{s.hodName}</td>
                   </tr>
                 ))}

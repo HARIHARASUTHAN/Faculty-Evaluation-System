@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/alert-dialog"
 import {
   getAllUsers, getDepartments, createUserProfile, deleteUserProfile, updateUserProfile,
-  type UserProfile, type Department
+  generateFacultyId, type UserProfile, type Department
 } from "@/lib/firestore"
 import { Users, Plus, Loader2, Search, UserX, Trash2, Pencil, X, Check } from "lucide-react"
 import { toast } from "sonner"
@@ -62,6 +62,8 @@ export function ManageFacultyPage() {
     try {
       const dept = departments.find(d => d.id === form.departmentId)
       const userCredential = await createUserWithEmailAndPassword(auth, form.email, form.password)
+      // Generate custom faculty ID: FAC-DEPTNAME-001
+      const customFacultyId = await generateFacultyId(dept?.departmentName || "")
       await createUserProfile(userCredential.user.uid, {
         name: form.name,
         email: form.email,
@@ -69,7 +71,8 @@ export function ManageFacultyPage() {
         departmentId: form.departmentId,
         departmentName: dept?.departmentName || "",
         status: "active",
-      })
+        facultyId: customFacultyId,
+      } as any)
       toast.success(`${form.role === "hod" ? "HOD" : "Faculty"} added successfully!`)
       setShowAdd(false)
       setForm({ name: "", email: "", password: "", departmentId: "", role: "faculty" })

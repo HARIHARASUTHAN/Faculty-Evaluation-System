@@ -31,7 +31,7 @@ export function FeedbackPage() {
 
   const chartData = criteria.map(c => ({
     name: c.title.split(" ")[0],
-    score: latestEval?.scores[c.id] || 0,
+    score: latestEval?.scores?.[c.id] || 0,
   }))
 
   return (
@@ -57,7 +57,7 @@ export function FeedbackPage() {
                   </div>
                 </div>
                 <Badge className="w-fit bg-accent/15 text-accent hover:bg-accent/20 border-0 text-sm px-5 py-2">
-                  {latestEval.finalScore >= 80 ? "Excellent" : latestEval.finalScore >= 60 ? "Good" : "Needs Improvement"}
+                  {(latestEval.finalScore ?? 0) >= 80 ? "Excellent" : (latestEval.finalScore ?? 0) >= 60 ? "Good" : "Needs Improvement"}
                 </Badge>
               </div>
             </CardContent>

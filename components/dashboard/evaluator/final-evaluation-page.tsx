@@ -86,7 +86,7 @@ export function FinalEvaluationPage() {
                       {criteria.map(c => (
                         <div key={c.id} className="rounded-lg bg-secondary/40 p-3 text-center">
                           <p className="text-xs text-muted-foreground">{c.title.split(" ")[0]}</p>
-                          <p className="font-display text-lg font-bold text-foreground">{ev.scores[c.id] || "—"}</p>
+                          <p className="font-display text-lg font-bold text-foreground">{ev.scores?.[c.id] || "—"}</p>
                         </div>
                       ))}
                     </div>

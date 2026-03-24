@@ -59,7 +59,7 @@ export function ReviewSubmissionsPage() {
                       {criteria.slice(0, 3).map(c => (
                         <div key={c.id} className="rounded-lg bg-secondary/40 p-2 text-center">
                           <p className="text-xs text-muted-foreground">{c.title.split(" ")[0]}</p>
-                          <p className="font-display text-sm font-bold text-foreground">{sub.scores[c.id] || "—"}</p>
+                          <p className="font-display text-sm font-bold text-foreground">{sub.scores?.[c.id] || "—"}</p>
                         </div>
                       ))}
                     </div>
@@ -109,7 +109,7 @@ export function ReviewSubmissionsPage() {
               {criteria.map(c => (
                 <div key={c.id} className="rounded-xl border border-border p-3 text-center premium-card">
                   <p className="text-xs text-muted-foreground">{c.title}</p>
-                  <p className="font-display text-xl font-bold gradient-text">{selected.scores[c.id] || "—"}</p>
+                  <p className="font-display text-xl font-bold gradient-text">{selected.scores?.[c.id] || "—"}</p>
                   <p className="text-xs text-muted-foreground">/ 100</p>
                 </div>
               ))}

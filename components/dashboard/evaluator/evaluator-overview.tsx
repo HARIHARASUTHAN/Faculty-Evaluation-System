@@ -43,10 +43,10 @@ export function EvaluatorOverview() {
       <Card className="premium-card border-border bg-card animate-fade-in-up">
         <CardContent className="p-6">
           <h2 className="font-display text-2xl font-bold text-foreground">
-            Welcome, <span className="gradient-text">{user?.name}</span>
+            <span className="gradient-text">{user?.name}</span>
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Evaluator — Department of {user?.department ?? "—"} | Academic Year 2024-25
+            Evaluator — Department of {user?.departmentName ?? "—"} | Academic Year 2024-25
           </p>
         </CardContent>
       </Card>
@@ -85,7 +85,7 @@ export function EvaluatorOverview() {
                     <span className="text-xs text-muted-foreground">{ev.department}</span>
                   </div>
                   <div className="flex items-center gap-3">
-                    {ev.finalScore > 0 && <span className="hidden sm:block font-display text-lg font-bold gradient-text">{ev.finalScore}</span>}
+                    {(ev.finalScore ?? 0) > 0 && <span className="hidden sm:block font-display text-lg font-bold gradient-text">{ev.finalScore}</span>}
                     <Badge variant="outline" className={
                       ev.status === "evaluated" ? "border-accent text-accent" :
                         ev.status === "submitted" ? "border-primary text-primary" :

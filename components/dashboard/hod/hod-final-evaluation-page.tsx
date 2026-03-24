@@ -66,10 +66,10 @@ export function HodFinalEvaluationPage() {
             await addAuditLog({
                 userId: user.uid, userName: user.name,
                 action: "Final Evaluation Submitted",
-                details: `${f.name}: Score ${totalScore}/100, Grade ${grade}`,
+                details: `${f.name}: Score ${totalScore}/100`,
                 timestamp: new Date().toISOString(),
             })
-            toast.success(`Final evaluation submitted: ${f.name} — ${totalScore}/100 (Grade ${grade})`)
+            toast.success(`Final evaluation submitted: ${f.name} — ${totalScore}/100`)
             setSubmitted(prev => new Set([...prev, f.id]))
         } catch (err) { toast.error("Failed to submit") }
         setSubmitting(null)
@@ -104,7 +104,7 @@ export function HodFinalEvaluationPage() {
                     {faculty.map((f, i) => {
                         const facultyDocs = docs.filter(d => d.facultyId === f.id && d.academicYear === activeCycle.academicYear)
                         const { categoryScores, totalScore } = calculateWeightedScores(facultyDocs, evals)
-                        const grade = calculateGrade(totalScore)
+
                         const isSubmitted = submitted.has(f.id)
 
                         return (
@@ -122,9 +122,7 @@ export function HodFinalEvaluationPage() {
                                         </div>
                                         <div className="text-right">
                                             <p className="font-display text-4xl font-extrabold text-foreground">{totalScore}<span className="text-base font-semibold text-muted-foreground">/100</span></p>
-                                            <p className={`text-base font-bold mt-1 ${grade === "A" ? "text-accent" : grade === "B" ? "text-primary" : grade === "C" ? "text-amber-400" : "text-destructive"}`}>
-                                                Grade {grade}
-                                            </p>
+
                                         </div>
                                     </div>
 

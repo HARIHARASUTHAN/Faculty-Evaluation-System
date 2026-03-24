@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useAuth } from "@/lib/auth-context"
 import {
-    getFinalScoresByFaculty, KPI_CATEGORIES, type FinalScore
+    getFinalScoresByFaculty, KPI_CATEGORIES, getMaxScore, type FinalScore
 } from "@/lib/firestore"
 import { TrendingUp, Award } from "lucide-react"
 
@@ -34,7 +34,7 @@ export function EvaluationResultsPage() {
         <div className="space-y-6">
             <div>
                 <h2 className="font-display text-2xl font-bold text-foreground">Evaluation Results</h2>
-                <p className="text-sm text-muted-foreground mt-1">Your performance scores and grades by academic year</p>
+                <p className="text-sm text-muted-foreground mt-1">Your performance scores by academic year</p>
             </div>
 
             {scores.length === 0 ? (
@@ -55,9 +55,7 @@ export function EvaluationResultsPage() {
                                             <p className="font-display text-3xl font-bold text-foreground">{score.totalScore}</p>
                                             <p className="text-xs text-muted-foreground">/100</p>
                                         </div>
-                                        <Badge className={`text-lg px-4 py-1 ${score.grade === "A" ? "bg-accent/15 text-accent border-accent/20" : score.grade === "B" ? "bg-primary/15 text-primary border-primary/20" : score.grade === "C" ? "bg-amber-500/15 text-amber-400 border-amber-500/20" : "bg-destructive/15 text-destructive border-destructive/20"}`}>
-                                            Grade {score.grade}
-                                        </Badge>
+
                                     </div>
                                 </div>
                             </CardHeader>
@@ -75,7 +73,7 @@ export function EvaluationResultsPage() {
                                                             {cs.weightedScore}<span className="text-xs text-muted-foreground">/{cat.weightage}</span>
                                                         </p>
                                                     </div>
-                                                    <p className="text-xs text-muted-foreground">{cs.docCount} docs, avg {cs.avgScore}/5</p>
+                                                    <p className="text-xs text-muted-foreground">{cs.docCount} docs, avg {cs.avgScore}/{getMaxScore(cat.id)}</p>
                                                 </div>
                                                 <div className="h-1.5 rounded-full bg-secondary/50 overflow-hidden mt-2">
                                                     <div

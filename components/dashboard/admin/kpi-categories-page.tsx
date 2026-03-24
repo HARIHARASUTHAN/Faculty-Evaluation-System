@@ -31,12 +31,6 @@ export function KpiCategoriesPage() {
                                     <span className="text-muted-foreground">Weightage</span>
                                     <span className="font-display font-bold text-foreground text-lg">{cat.weightage}%</span>
                                 </div>
-                                <div className="h-2 rounded-full bg-secondary/50 overflow-hidden">
-                                    <div
-                                        className="h-full rounded-full bg-gradient-to-r from-primary to-accent transition-all duration-700"
-                                        style={{ width: `${cat.weightage}%` }}
-                                    />
-                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -50,15 +44,6 @@ export function KpiCategoriesPage() {
                         <div>
                             <p className="text-sm font-medium text-foreground">Scoring Scale</p>
                             <p className="text-xs text-muted-foreground mt-1">Each document is scored 1–5 by the HOD. Category Score = Avg(Document Scores) × Weightage</p>
-                        </div>
-                        <div className="text-right">
-                            <p className="text-sm font-medium text-foreground">Performance Grades</p>
-                            <div className="flex gap-3 mt-1 text-xs">
-                                <span className="text-accent font-medium">A: 85–100</span>
-                                <span className="text-primary font-medium">B: 70–84</span>
-                                <span className="text-chart-3 font-medium">C: 50–69</span>
-                                <span className="text-destructive font-medium">D: &lt;50</span>
-                            </div>
                         </div>
                     </div>
                 </CardContent>

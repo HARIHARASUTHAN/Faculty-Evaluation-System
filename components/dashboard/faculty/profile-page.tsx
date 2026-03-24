@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/lib/auth-context"
-import { updateUserProfile, getUserProfile } from "@/lib/firestore"
+import { updateUserProfile, getUserProfile, generateFacultyId } from "@/lib/firestore"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -29,6 +29,7 @@ export function ProfilePage() {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [profileData, setProfileData] = useState<any>(null)
   const [form, setForm] = useState<ProfileData>({
     name: "",
     email: "",
@@ -44,6 +45,14 @@ export function ProfilePage() {
       try {
         const profile = await getUserProfile(user.uid)
         if (profile) {
+          // Always generate/refresh the faculty ID with latest abbreviation format
+          let storedProfile = profile as any
+          if (profile.role === "faculty" || profile.role === "hod") {
+            const newFacultyId = await generateFacultyId(profile.departmentName || "")
+            await updateUserProfile(user.uid, { facultyId: newFacultyId })
+            storedProfile = { ...storedProfile, facultyId: newFacultyId }
+          }
+          setProfileData(storedProfile)
           setForm({
             name: profile.name || user.name || "",
             email: profile.email || user.email || "",
@@ -173,7 +182,7 @@ export function ProfilePage() {
         <div className="h-24 bg-gradient-to-r from-primary/20 via-blue-500/20 to-accent/20" />
         <CardContent className="p-6 -mt-12">
           <div className="flex flex-col sm:flex-row items-start sm:items-end gap-5">
-            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-accent text-white text-2xl font-display font-bold shadow-xl shadow-primary/20 ring-4 ring-background">
+            <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-slate-700 text-white text-2xl font-display font-bold shadow-xl shadow-slate-700/20 ring-4 ring-background">
               {initials}
             </div>
             <div className="flex-1">
@@ -229,11 +238,8 @@ export function ProfilePage() {
               </Label>
               <div className="flex items-center gap-3 rounded-xl bg-secondary/30 p-3.5">
                 <p className="text-sm font-mono font-medium text-foreground">
-                  {user?.uid || "—"}
+                  {profileData?.facultyId || user?.uid || "—"}
                 </p>
-                <Badge className="text-[10px] bg-secondary/50 text-muted-foreground border-border ml-auto">
-                  System Generated
-                </Badge>
               </div>
             </div>
 

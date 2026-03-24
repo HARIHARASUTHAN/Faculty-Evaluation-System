@@ -80,7 +80,7 @@ export function DashboardSidebar({ role, currentPage, onNavigate, userName, user
     <div className="flex h-full flex-col bg-sidebar border-r border-sidebar-border">
       {/* Logo area */}
       <div className="flex h-16 items-center gap-3 border-b border-sidebar-border px-5">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent shadow-md shadow-primary/20">
+        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-700 shadow-md shadow-slate-700/20">
           <GraduationCap className="h-5 w-5 text-white" />
         </div>
         <div className="flex flex-col">
@@ -138,18 +138,7 @@ export function DashboardSidebar({ role, currentPage, onNavigate, userName, user
 
       {/* Footer */}
       <div className="border-t border-sidebar-border p-4">
-        <div className="rounded-xl bg-sidebar-accent/40 p-3">
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white text-xs font-bold">
-              {userName.split(" ").map(n => n[0]).join("").slice(0, 2)}
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-sidebar-foreground truncate">{userName}</p>
-              <p className="text-[10px] text-sidebar-foreground/40 capitalize">{userRole === "hod" ? "HOD" : userRole}</p>
-            </div>
-          </div>
-        </div>
-        <p className="mt-3 text-center text-[10px] text-sidebar-foreground/25">
+        <p className="text-center text-[10px] text-sidebar-foreground/25">
           FDES v2.0 • Powered by Firebase
         </p>
       </div>

@@ -156,7 +156,7 @@ export function DashboardShell() {
 
             <div className="hidden items-center gap-3 sm:flex ml-2 pl-3 border-l border-border">
               <Avatar className="h-8 w-8 ring-2 ring-primary/20">
-                <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-white text-xs font-medium">
+                <AvatarFallback className="bg-slate-700 text-white text-xs font-medium">
                   {initials}
                 </AvatarFallback>
               </Avatar>
