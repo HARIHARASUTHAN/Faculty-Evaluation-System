@@ -1,9 +1,11 @@
 "use client"
 
-import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useRef, type ReactNode } from "react"
 import {
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
@@ -49,6 +51,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AppUser | null>(null)
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const redirectHandled = useRef(false)
+
+  // Handle redirect result on page load (after signInWithRedirect)
+  useEffect(() => {
+    if (redirectHandled.current) return
+    redirectHandled.current = true
+    getRedirectResult(auth).catch(() => {
+      // Redirect result errors are handled by onAuthStateChanged
+    })
+  }, [])
 
   // Listen to Firebase auth state changes
   useEffect(() => {
@@ -136,6 +148,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithGoogle = useCallback(async () => {
     setIsLoading(true)
     try {
+      // Try popup first (works on localhost and desktop browsers)
       const result = await signInWithPopup(auth, googleProvider)
       const fbUser = result.user
       // Check if user profile exists in Firestore; if not, create one
@@ -156,6 +169,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { success: true }
     } catch (error: unknown) {
       const err = error as { code?: string; message?: string }
+      // If popup is blocked or fails due to cross-origin, fall back to redirect
+      if (
+        err.code === "auth/popup-blocked" ||
+        err.code === "auth/popup-closed-by-user" ||
+        err.code === "auth/cancelled-popup-request" ||
+        err.code === "auth/unauthorized-domain" ||
+        err.code === "auth/internal-error"
+      ) {
+        try {
+          await signInWithRedirect(auth, googleProvider)
+          // Page will redirect, so this won't return
+          return { success: true }
+        } catch {
+          return { success: false, error: "Google sign-in failed. Please try again." }
+        }
+      }
       let message = "Google sign-in failed. Please try again."
       if (err.code === "auth/popup-closed-by-user") message = "Sign-in popup was closed."
       else if (err.code === "auth/cancelled-popup-request") message = "Sign-in was cancelled."
